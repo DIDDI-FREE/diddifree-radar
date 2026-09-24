@@ -20,41 +20,50 @@ class PilotageSource:
     default_base_url: str
     default_summary_base: str
     requires_token: bool
+    default_scope: str
 
     def base_url(self) -> str:
-        return os.getenv(self.base_url_env, self.default_base_url).rstrip("/")
+        return (os.getenv(self.base_url_env) or self.default_base_url).rstrip("/")
 
     def summary_base(self) -> str:
-        return os.getenv(f"PILOTAGE_{self.key.upper()}_SUMMARY_BASE", self.default_summary_base).rstrip("/")
+        return (os.getenv(f"PILOTAGE_{self.key.upper()}_SUMMARY_BASE") or self.default_summary_base).rstrip("/")
 
     def scope(self) -> str:
-        return os.getenv(f"PILOTAGE_{self.key.upper()}_SCOPE", f"{self.key}:pilotage-summary:read")
+        return os.getenv(f"PILOTAGE_{self.key.upper()}_SCOPE") or self.default_scope
 
 
+# Default scopes are each module's registered convention in DiddiFreeID
+# (identity.service_clients), not a Pilotage invention.
 PILOTAGE_SOURCES: dict[str, PilotageSource] = {
     "diddigo": PilotageSource(
         "diddigo", "DiddiGo", "DIDDIGO_SERVICE_URL",
         "https://go-staging.diddifree.com", "/internal/pilotage", True,
+        "diddigo:ride-summary:read",
     ),
     "diddisend": PilotageSource(
         "diddisend", "DiddiSend", "DIDDISEND_SERVICE_URL",
         "https://diddisend-api-staging.diddifree.com", "/internal/pilotage", True,
+        "diddisend:pilotage:daily-summary:read",
     ),
     "diddipay": PilotageSource(
         "diddipay", "DiddiPay", "DIDDIPAY_SERVICE_URL",
         "https://pay-api-staging.diddifree.com", "/payfund/v1/internal/pilotage", True,
+        "diddipay:payment-summary:read",
     ),
     "diddimap": PilotageSource(
         "diddimap", "DiddiMap", "DIDDIMAP_SERVICE_URL",
         "http://abidjanmaps-backend-staging.diddifree.com", "/internal/pilotage", False,
+        "diddimap:pilotage-summary:read",
     ),
     "diddifood": PilotageSource(
         "diddifood", "DiddiFood", "DIDDIFOOD_SERVICE_URL",
         "https://diddifood-backend-staging.diddifree.com", "/internal/pilotage", True,
+        "food:pilotage:read",
     ),
     "diddifiles": PilotageSource(
         "diddifiles", "DiddiFiles", "DIDDIFILES_SERVICE_URL",
         "https://diddifiles.diddifree.com", "/internal/pilotage", True,
+        "diddifiles:pilotage-summary:read",
     ),
 }
 
