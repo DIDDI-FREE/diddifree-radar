@@ -4,8 +4,10 @@ import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from datetime import date as date_type, timedelta
+
 from app.collector import store
-from app.collector.collector import DAILY_KIND, business_timezone, business_today, collect_daily_summary
+from app.collector.collector import DAILY_KIND, backfill_module, business_timezone, business_today, collect_daily_summary
 from app.core.auth import COLLECT_ROLES, PilotagePrincipal, get_principal, require_module_access, require_role
 from app.core.request_context import get_request_id
 from app.sources.catalog import PILOTAGE_SOURCES, enabled_modules, get_source
@@ -86,6 +88,33 @@ def module_daily_summary(
     return {"summary": record["payload"], "freshness": freshness.model_dump(mode="json"), "collected_at": record["collected_at"]}
 
 
+@router.get("/modules/{module}/history")
+def module_history(
+    module: str,
+    days: int = Query(default=7, ge=1, le=90),
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    _known_module(module)
+    require_module_access(principal, module)
+    today = date_type.fromisoformat(business_today())
+    from_date = (today - timedelta(days=days - 1)).isoformat()
+    records = store.summaries_range(module, DAILY_KIND, from_date, today.isoformat())
+    return {
+        "module": module,
+        "from": from_date,
+        "to": today.isoformat(),
+        "items": [
+            {
+                "date": record["summary_date"],
+                "is_final": bool(record["is_final"]),
+                "metrics": record["payload"].get("metrics", []),
+                "collected_at": record["collected_at"],
+            }
+            for record in records
+        ],
+    }
+
+
 @router.get("/sources")
 def sources(principal: PilotagePrincipal = Depends(get_principal)) -> dict:
     states = {(state["module"], state["kind"]): state for state in store.all_source_states()}
@@ -115,4 +144,17 @@ async def trigger_collection(module: str, principal: PilotagePrincipal = Depends
     require_role(principal, COLLECT_ROLES)
     require_module_access(principal, module)
     result = await collect_daily_summary(module)
+    return {"result": result, "request_id": get_request_id()}
+
+
+@router.post("/sources/{module}/backfill")
+async def trigger_backfill(
+    module: str,
+    days: int = Query(default=30, ge=1, le=90),
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    _known_module(module)
+    require_role(principal, COLLECT_ROLES)
+    require_module_access(principal, module)
+    result = await backfill_module(module, days=days)
     return {"result": result, "request_id": get_request_id()}

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from datetime import datetime
+from datetime import date as date_type, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from pydantic import ValidationError
@@ -27,21 +27,33 @@ def business_today() -> str:
     return datetime.now(business_timezone()).date().isoformat()
 
 
-async def collect_daily_summary(module: str, *, date: str | None = None, client: PilotageSourceClient | None = None) -> dict:
-    """Collect one module's daily summary; failures never erase the last value."""
+async def collect_daily_summary(
+    module: str,
+    *,
+    date: str | None = None,
+    client: PilotageSourceClient | None = None,
+    update_state: bool = True,
+) -> dict:
+    """Collect one module's daily summary; failures never erase the last value.
+
+    ``update_state=False`` keeps ``pilotage_source_state`` untouched so a
+    historical backfill cannot masquerade as live-collection health.
+    """
     target_date = date or business_today()
     client = client or PilotageSourceClient(module)
     try:
         payload = await client.daily_summary(target_date)
         summary = PilotageSummary.model_validate(payload)
     except SourceError as error:
-        store.record_failure(module, DAILY_KIND, error.code, str(error))
+        if update_state:
+            store.record_failure(module, DAILY_KIND, error.code, str(error))
         log_json({"event": "collect_failed", "module": module, "kind": DAILY_KIND, "date": target_date, "code": error.code})
-        return {"module": module, "status": "failed", "code": error.code}
+        return {"module": module, "date": target_date, "status": "failed", "code": error.code}
     except ValidationError as error:
-        store.record_failure(module, DAILY_KIND, "contract_invalid", f"summary does not match pilotage.v1 ({error.error_count()} errors)")
+        if update_state:
+            store.record_failure(module, DAILY_KIND, "contract_invalid", f"summary does not match pilotage.v1 ({error.error_count()} errors)")
         log_json({"event": "collect_failed", "module": module, "kind": DAILY_KIND, "date": target_date, "code": "contract_invalid"})
-        return {"module": module, "status": "failed", "code": "contract_invalid"}
+        return {"module": module, "date": target_date, "status": "failed", "code": "contract_invalid"}
     store.save_summary(
         module,
         DAILY_KIND,
@@ -50,9 +62,36 @@ async def collect_daily_summary(module: str, *, date: str | None = None, client:
         summary.calculated_at.isoformat(),
         summary.is_final,
     )
-    store.record_success(module, DAILY_KIND)
+    if update_state:
+        store.record_success(module, DAILY_KIND)
     log_json({"event": "collect_succeeded", "module": module, "kind": DAILY_KIND, "date": summary.date.isoformat()})
     return {"module": module, "status": "collected", "date": summary.date.isoformat()}
+
+
+async def backfill_module(module: str, *, days: int, client: PilotageSourceClient | None = None) -> dict:
+    """Collect the last ``days`` daily summaries for one module, oldest first.
+
+    Runs outside the live source-state so old dates cannot flip freshness,
+    and stops early after repeated failures — a module that rejects one
+    historical date will reject them all the same way.
+    """
+    days = max(1, min(days, 90))
+    client = client or PilotageSourceClient(module)
+    today = date_type.fromisoformat(business_today())
+    collected, failed = 0, 0
+    last_code: str | None = None
+    for offset in range(days, 0, -1):
+        target = (today - timedelta(days=offset)).isoformat()
+        result = await collect_daily_summary(module, date=target, client=client, update_state=False)
+        if result["status"] == "collected":
+            collected += 1
+        else:
+            failed += 1
+            last_code = result.get("code")
+            if failed >= 3 and collected == 0:
+                break
+    log_json({"event": "backfill_finished", "module": module, "days": days, "collected": collected, "failed": failed})
+    return {"module": module, "days": days, "collected": collected, "failed": failed, "last_error_code": last_code}
 
 
 async def collect_all(*, date: str | None = None) -> list[dict]:

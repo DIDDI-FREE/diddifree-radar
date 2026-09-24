@@ -28,9 +28,17 @@
   .badge.fresh { background: rgba(46,204,113,.15); color: var(--fresh); }
   .badge.stale { background: rgba(241,196,15,.15); color: var(--stale); }
   .badge.unavailable { background: rgba(231,76,60,.15); color: var(--unavailable); }
-  .metric { display: flex; justify-content: space-between; border-top: 1px solid var(--line); padding: 6px 0; }
-  .metric .name { color: var(--muted); }
-  .metric .value { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .metric { display: flex; justify-content: space-between; align-items: center; gap: 10px; border-top: 1px solid var(--line); padding: 6px 0; }
+  .metric .name { color: var(--muted); flex: 1; }
+  .metric .value { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+  .metric svg { flex: 0 0 96px; height: 26px; }
+  .metric svg rect { fill: var(--accent); }
+  .metric svg rect.partial { fill: var(--stale); }
+  .range-bar { display: flex; align-items: center; gap: 6px; }
+  .range-bar button { padding: 4px 10px; font-size: 12px; }
+  .range-bar button.on { background: var(--accent); color: #06121f; border-color: var(--accent); }
+  .section-head { display: flex; align-items: center; justify-content: space-between; margin: 26px 0 10px; }
+  .section-head h2 { margin: 0; }
   .meta { color: var(--muted); font-size: 12px; margin-top: 8px; }
   .error-line { color: var(--unavailable); font-size: 12px; margin-top: 6px; }
   .empty { color: var(--muted); font-style: italic; padding: 8px 0; }
@@ -63,6 +71,7 @@
 const API = "/api/pilotage";
 let session = null;
 let refreshTimer = null;
+let rangeDays = Number(sessionStorage.getItem("pilotage_range") || 7);
 
 function token() { return sessionStorage.getItem("pilotage_token") || ""; }
 
@@ -104,12 +113,41 @@ function badge(freshness) {
   return '<span class="badge ' + status + '">' + (BADGES[status] || status) + "</span>";
 }
 
-function moduleCard(block) {
+function sparkline(series) {
+  if (!series || series.length < 2) return "";
+  const w = 96, h = 26, gap = 1;
+  const max = Math.max(...series.map(p => p.value), 0);
+  const bw = Math.max((w - gap * (series.length - 1)) / series.length, 1);
+  const bars = series.map((p, i) => {
+    const bh = max > 0 ? Math.max((p.value / max) * (h - 2), 1) : 1;
+    const cls = p.is_final ? "" : ' class="partial"';
+    return '<rect' + cls + ' x="' + (i * (bw + gap)).toFixed(2) + '" y="' + (h - bh).toFixed(2) +
+      '" width="' + bw.toFixed(2) + '" height="' + bh.toFixed(2) + '"><title>' + esc(p.date) + " : " +
+      Number(p.value).toLocaleString("fr-FR") + "</title></rect>";
+  }).join("");
+  return '<svg viewBox="0 0 ' + w + " " + h + '" preserveAspectRatio="none">' + bars + "</svg>";
+}
+
+function metricSeries(history, name) {
+  if (!history) return [];
+  return history.items
+    .map(item => {
+      const metric = (item.metrics || []).find(m => m.name === name);
+      return metric && typeof metric.value === "number"
+        ? { date: item.date, value: metric.value, is_final: item.is_final }
+        : null;
+    })
+    .filter(Boolean);
+}
+
+function moduleCard(block, history) {
   const summary = block.summary;
   let rows = '<div class="empty">Aucune donnée collectée pour le moment.</div>';
   if (summary && summary.metrics && summary.metrics.length) {
     rows = summary.metrics.map(m =>
-      '<div class="metric"><span class="name">' + esc(m.label || m.name) + '</span><span class="value">' + fmtValue(m) + "</span></div>"
+      '<div class="metric"><span class="name">' + esc(m.label || m.name) + "</span>" +
+      sparkline(metricSeries(history, m.name)) +
+      '<span class="value">' + fmtValue(m) + "</span></div>"
     ).join("");
   }
   const links = (summary && summary.deep_links || []).map(l => '<a href="' + esc(l.href) + '">' + esc(l.label) + "</a>").join(" · ");
@@ -131,14 +169,32 @@ function sourcesTable(items) {
   return "<table><thead><tr><th>Source</th><th>État</th><th>Dernière tentative</th><th>Échecs consécutifs</th><th>Erreur</th></tr></thead><tbody>" + rows + "</tbody></table>";
 }
 
+function rangeSelector() {
+  return '<div class="range-bar">' + [7, 14, 30].map(d =>
+    '<button class="ghost' + (d === rangeDays ? " on" : "") + '" data-range="' + d + '">' + d + " j</button>"
+  ).join("") + "</div>";
+}
+
 async function renderDashboard() {
   const app = document.getElementById("app");
   try {
     const [overview, sources] = await Promise.all([api("/overview"), api("/sources")]);
+    const histories = {};
+    await Promise.all(overview.modules.map(async block => {
+      try { histories[block.module] = await api("/modules/" + block.module + "/history?days=" + rangeDays); }
+      catch { histories[block.module] = null; }
+    }));
     app.innerHTML =
-      '<h2>Vue d\'ensemble — ' + esc(overview.date) + '</h2>' +
-      '<div class="grid">' + overview.modules.map(moduleCard).join("") + "</div>" +
+      '<div class="section-head"><h2>Vue d\'ensemble — ' + esc(overview.date) + " · " + rangeDays + " derniers jours</h2>" + rangeSelector() + "</div>" +
+      '<div class="grid">' + overview.modules.map(b => moduleCard(b, histories[b.module])).join("") + "</div>" +
       "<h2>Sources de collecte</h2>" + sourcesTable(sources.items);
+    app.querySelectorAll("[data-range]").forEach(btn => {
+      btn.onclick = () => {
+        rangeDays = Number(btn.dataset.range);
+        sessionStorage.setItem("pilotage_range", String(rangeDays));
+        renderDashboard();
+      };
+    });
   } catch (error) {
     app.innerHTML = '<div class="card"><div class="error-line">' + esc(error.message) + "</div></div>";
   }

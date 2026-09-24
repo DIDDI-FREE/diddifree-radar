@@ -53,6 +53,16 @@ def latest_summary(module: str, kind: str, summary_date: str | None = None) -> d
     return record
 
 
+def summaries_range(module: str, kind: str, from_date: str, to_date: str) -> list[dict]:
+    records = rows(
+        "SELECT * FROM pilotage_summaries WHERE module = ? AND kind = ? AND summary_date >= ? AND summary_date <= ? ORDER BY summary_date",
+        (module, kind, from_date, to_date),
+    )
+    for record in records:
+        record["payload"] = json.loads(record["payload"])
+    return records
+
+
 def record_success(module: str, kind: str) -> None:
     now = utc_now_iso()
     execute(
