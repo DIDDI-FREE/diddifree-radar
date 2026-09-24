@@ -1,0 +1,70 @@
+x-pilotage-runtime: &pilotage-runtime
+  PILOTAGE_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  PILOTAGE_ENV: staging
+  PILOTAGE_ALLOW_INSECURE_HEADERS: "0"
+  PILOTAGE_OIDC_JWKS_URL: ${PILOTAGE_OIDC_JWKS_URL:?PILOTAGE_OIDC_JWKS_URL is required}
+  PILOTAGE_OIDC_ISSUER: ${PILOTAGE_OIDC_ISSUER:?PILOTAGE_OIDC_ISSUER is required}
+  PILOTAGE_OIDC_AUDIENCE: ${PILOTAGE_OIDC_AUDIENCE:-}
+  PILOTAGE_CORS_ORIGINS: ${PILOTAGE_CORS_ORIGINS:?PILOTAGE_CORS_ORIGINS is required}
+  PILOTAGE_BOOTSTRAP_DG_EMAILS: ${PILOTAGE_BOOTSTRAP_DG_EMAILS:-}
+  PILOTAGE_MODULES: ${PILOTAGE_MODULES:-diddigo,diddisend,diddipay,diddimap}
+  PILOTAGE_COLLECT_INTERVAL_SECONDS: ${PILOTAGE_COLLECT_INTERVAL_SECONDS:-30}
+  PILOTAGE_FRESHNESS_WINDOW_SECONDS: ${PILOTAGE_FRESHNESS_WINDOW_SECONDS:-60}
+  PILOTAGE_BUSINESS_TIMEZONE: ${PILOTAGE_BUSINESS_TIMEZONE:-Africa/Abidjan}
+  PILOTAGE_LOG_LEVEL: ${PILOTAGE_LOG_LEVEL:-INFO}
+  PILOTAGE_SERVICE_CLIENT_ID: ${PILOTAGE_SERVICE_CLIENT_ID:-pilotage-staging}
+  PILOTAGE_SERVICE_CLIENT_SECRET: ${PILOTAGE_SERVICE_CLIENT_SECRET:-}
+  DIDDIFREEID_SERVICE_URL: ${DIDDIFREEID_SERVICE_URL:-https://auth-staging.diddifree.com/identity/v1}
+  DIDDIGO_SERVICE_URL: ${DIDDIGO_SERVICE_URL:-https://go-staging.diddifree.com}
+  DIDDISEND_SERVICE_URL: ${DIDDISEND_SERVICE_URL:-https://diddisend-api-staging.diddifree.com}
+  DIDDIPAY_SERVICE_URL: ${DIDDIPAY_SERVICE_URL:-https://pay-api-staging.diddifree.com}
+  DIDDIMAP_SERVICE_URL: ${DIDDIMAP_SERVICE_URL:-http://abidjanmaps-backend-staging.diddifree.com}
+  DIDDIFOOD_SERVICE_URL: ${DIDDIFOOD_SERVICE_URL:-https://diddifood-backend-staging.diddifree.com}
+  DIDDIFILES_SERVICE_URL: ${DIDDIFILES_SERVICE_URL:-https://diddifiles.diddifree.com}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - pilotage_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+    restart: unless-stopped
+    ports:
+      - "${PILOTAGE_HTTP_PORT:-8090}:8000"
+    environment:
+      <<: *pilotage-runtime
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  collector:
+    build:
+      context: .
+    command: ["python", "scripts/run_collector.py"]
+    restart: unless-stopped
+    environment:
+      <<: *pilotage-runtime
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pilotage_postgres:
