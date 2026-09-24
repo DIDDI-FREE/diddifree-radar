@@ -3,9 +3,13 @@ from __future__ import annotations
 import os
 import secrets
 
+from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
+from app.api.auth_routes import router as auth_router
 from app.api.routes import router as pilotage_router
 from app.core.db import init_db
 from app.core.logging import Stopwatch, log_json
@@ -54,8 +58,16 @@ app.add_middleware(
 )
 
 app.include_router(pilotage_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
+
+_STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 @app.get("/health")
 def container_health() -> dict:
     return {"module": "pilotage", "status": "healthy"}
+
+
+@app.get("/", include_in_schema=False)
+def dashboard() -> FileResponse:
+    return FileResponse(_STATIC_DIR / "index.html", media_type="text/html")
