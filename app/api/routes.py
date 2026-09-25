@@ -8,6 +8,7 @@ from datetime import date as date_type, timedelta
 
 from app.collector import store
 from app.collector.collector import DAILY_KIND, backfill_module, business_timezone, business_today, collect_daily_summary
+from app.collector.rollups import aggregate_periods
 from app.core.auth import COLLECT_ROLES, PilotagePrincipal, get_principal, require_module_access, require_role
 from app.core.request_context import get_request_id
 from app.sources.catalog import PILOTAGE_SOURCES, enabled_modules, get_source
@@ -112,6 +113,23 @@ def module_history(
             }
             for record in records
         ],
+    }
+
+
+@router.get("/modules/{module}/aggregates")
+def module_aggregates(
+    module: str,
+    period: str = Query(default="week", pattern="^(week|month)$"),
+    count: int = Query(default=8, ge=1, le=12),
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    _known_module(module)
+    require_module_access(principal, module)
+    today = date_type.fromisoformat(business_today())
+    return {
+        "module": module,
+        "period": period,
+        "buckets": aggregate_periods(module, period=period, count=count, today=today),
     }
 
 

@@ -9,43 +9,54 @@
     --bg: #0e1116; --panel: #171c24; --panel2: #1e2530; --line: #2a3342;
     --text: #e6ebf2; --muted: #8b97a8; --accent: #4da3ff;
     --fresh: #2ecc71; --stale: #f1c40f; --unavailable: #e74c3c;
+    --up: #2ecc71; --down: #e74c3c;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, "Segoe UI", sans-serif; }
-  header { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; }
+  header { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; }
   header h1 { font-size: 16px; margin: 0; letter-spacing: .4px; }
   header .tag { color: var(--muted); font-size: 12px; }
   header .spacer { flex: 1; }
   .chip { background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; font-size: 12px; color: var(--muted); }
   button { background: var(--accent); color: #06121f; border: 0; border-radius: 6px; padding: 8px 14px; font-weight: 600; cursor: pointer; }
   button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
-  button:disabled { opacity: .5; cursor: default; }
-  main { max-width: 1100px; margin: 0 auto; padding: 20px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  button:disabled { opacity: .4; cursor: default; }
+  main { max-width: 1150px; margin: 0 auto; padding: 20px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tabs button { padding: 7px 18px; font-size: 13px; }
+  .tabs button.on { background: var(--accent); color: #06121f; border-color: var(--accent); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
-  .card h3 { margin: 0 0 4px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .card h3 { margin: 0 0 6px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
   .badge { font-size: 10px; font-weight: 700; letter-spacing: .6px; border-radius: 4px; padding: 2px 7px; text-transform: uppercase; }
   .badge.fresh { background: rgba(46,204,113,.15); color: var(--fresh); }
   .badge.stale { background: rgba(241,196,15,.15); color: var(--stale); }
   .badge.unavailable { background: rgba(231,76,60,.15); color: var(--unavailable); }
-  .metric { display: flex; justify-content: space-between; align-items: center; gap: 10px; border-top: 1px solid var(--line); padding: 6px 0; }
-  .metric .name { color: var(--muted); flex: 1; }
+  .metric { display: flex; justify-content: space-between; align-items: center; gap: 8px; border-top: 1px solid var(--line); padding: 7px 0; }
+  .metric .name { color: var(--muted); flex: 1; min-width: 0; }
   .metric .value { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
-  .metric svg { flex: 0 0 96px; height: 26px; }
+  .metric svg { flex: 0 0 84px; height: 24px; }
   .metric svg rect { fill: var(--accent); }
   .metric svg rect.partial { fill: var(--stale); }
-  .range-bar { display: flex; align-items: center; gap: 6px; }
-  .range-bar button { padding: 4px 10px; font-size: 12px; }
-  .range-bar button.on { background: var(--accent); color: #06121f; border-color: var(--accent); }
-  .section-head { display: flex; align-items: center; justify-content: space-between; margin: 26px 0 10px; }
-  .section-head h2 { margin: 0; }
+  .delta { font-size: 11px; font-weight: 700; white-space: nowrap; min-width: 56px; text-align: right; }
+  .delta.up { color: var(--up); } .delta.down { color: var(--down); } .delta.flat { color: var(--muted); }
   .meta { color: var(--muted); font-size: 12px; margin-top: 8px; }
   .error-line { color: var(--unavailable); font-size: 12px; margin-top: 6px; }
   .empty { color: var(--muted); font-style: italic; padding: 8px 0; }
-  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
-  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); }
-  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12.5px; }
+  th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 600; font-size: 11.5px; }
+  td .delta { display: block; min-width: 0; }
+  .table-wrap { overflow-x: auto; }
   h2 { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin: 26px 0 10px; }
+  .daynav { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .daynav .date { font-size: 15px; font-weight: 600; min-width: 220px; text-align: center; text-transform: capitalize; }
+  .wide-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+  .strip { display: flex; flex-wrap: wrap; gap: 18px; }
+  .strip .item .k { color: var(--muted); font-size: 11.5px; }
+  .strip .item .v { font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .partial-note { color: var(--stale); font-size: 11px; }
   /* login */
   .login-wrap { max-width: 360px; margin: 10vh auto; }
   .login-wrap .card { padding: 22px; }
@@ -71,7 +82,9 @@
 const API = "/api/pilotage";
 let session = null;
 let refreshTimer = null;
-let rangeDays = Number(sessionStorage.getItem("pilotage_range") || 7);
+let tab = sessionStorage.getItem("pilotage_tab") || "day";
+let selectedDate = null; // ISO; set from overview on load
+const cache = { overview: null, sources: null, histories: {}, weeks: {}, months: {} };
 
 function token() { return sessionStorage.getItem("pilotage_token") || ""; }
 
@@ -92,22 +105,38 @@ function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-function fmtDate(iso) {
-  if (!iso) return "—";
-  try { return new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "medium" }); } catch { return iso; }
+function fmtNum(value, unit) {
+  if (typeof value !== "number") return esc(value);
+  const text = value.toLocaleString("fr-FR");
+  return unit === "XOF" ? text + " F" : text;
 }
 
-function fmtValue(metric) {
-  const v = metric.value;
-  if (typeof v === "number") {
-    const text = v.toLocaleString("fr-FR");
-    return metric.unit === "XOF" ? text + " F" : text;
+function fmtDayLong(iso) {
+  return new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+}
+
+function fmtDayShort(iso) {
+  return new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+}
+
+function addDays(iso, n) {
+  const d = new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function delta(current, previous) {
+  if (typeof current !== "number" || typeof previous !== "number" || previous === 0) {
+    return '<span class="delta flat">—</span>';
   }
-  return esc(v);
+  const pct = ((current - previous) / previous) * 100;
+  if (Math.abs(pct) < 0.05) return '<span class="delta flat">=</span>';
+  const cls = pct > 0 ? "up" : "down";
+  const arrow = pct > 0 ? "▲" : "▼";
+  return '<span class="delta ' + cls + '">' + arrow + " " + Math.abs(pct).toFixed(Math.abs(pct) < 10 ? 1 : 0) + " %</span>";
 }
 
 const BADGES = { fresh: "frais", stale: "obsolète", unavailable: "indisponible" };
-
 function badge(freshness) {
   const status = (freshness && freshness.status) || "unavailable";
   return '<span class="badge ' + status + '">' + (BADGES[status] || status) + "</span>";
@@ -115,91 +144,213 @@ function badge(freshness) {
 
 function sparkline(series) {
   if (!series || series.length < 2) return "";
-  const w = 96, h = 26, gap = 1;
+  const w = 84, h = 24, gap = 1;
   const max = Math.max(...series.map(p => p.value), 0);
   const bw = Math.max((w - gap * (series.length - 1)) / series.length, 1);
   const bars = series.map((p, i) => {
     const bh = max > 0 ? Math.max((p.value / max) * (h - 2), 1) : 1;
-    const cls = p.is_final ? "" : ' class="partial"';
-    return '<rect' + cls + ' x="' + (i * (bw + gap)).toFixed(2) + '" y="' + (h - bh).toFixed(2) +
-      '" width="' + bw.toFixed(2) + '" height="' + bh.toFixed(2) + '"><title>' + esc(p.date) + " : " +
-      Number(p.value).toLocaleString("fr-FR") + "</title></rect>";
+    return '<rect' + (p.is_final ? "" : ' class="partial"') + ' x="' + (i * (bw + gap)).toFixed(2) + '" y="' + (h - bh).toFixed(2) +
+      '" width="' + bw.toFixed(2) + '" height="' + bh.toFixed(2) + '"><title>' + esc(p.date) + " : " + p.value.toLocaleString("fr-FR") + "</title></rect>";
   }).join("");
   return '<svg viewBox="0 0 ' + w + " " + h + '" preserveAspectRatio="none">' + bars + "</svg>";
 }
 
-function metricSeries(history, name) {
-  if (!history) return [];
-  return history.items
-    .map(item => {
-      const metric = (item.metrics || []).find(m => m.name === name);
-      return metric && typeof metric.value === "number"
-        ? { date: item.date, value: metric.value, is_final: item.is_final }
-        : null;
-    })
-    .filter(Boolean);
+function historyIndex(history) {
+  const map = {};
+  (history && history.items || []).forEach(item => {
+    map[item.date] = {};
+    (item.metrics || []).forEach(m => { map[item.date][m.name] = m; });
+    map[item.date].__is_final = item.is_final;
+  });
+  return map;
 }
 
-function moduleCard(block, history) {
-  const summary = block.summary;
-  let rows = '<div class="empty">Aucune donnée collectée pour le moment.</div>';
-  if (summary && summary.metrics && summary.metrics.length) {
-    rows = summary.metrics.map(m =>
-      '<div class="metric"><span class="name">' + esc(m.label || m.name) + "</span>" +
-      sparkline(metricSeries(history, m.name)) +
-      '<span class="value">' + fmtValue(m) + "</span></div>"
-    ).join("");
+function metricSeries(history, name, lastN) {
+  const items = (history && history.items || []).slice(-lastN);
+  return items.map(item => {
+    const metric = (item.metrics || []).find(m => m.name === name);
+    return metric && typeof metric.value === "number" ? { date: item.date, value: metric.value, is_final: item.is_final } : null;
+  }).filter(Boolean);
+}
+
+/* ---------- data loading ---------- */
+async function loadAll() {
+  const [overview, sources] = await Promise.all([api("/overview"), api("/sources")]);
+  cache.overview = overview;
+  cache.sources = sources;
+  if (!selectedDate) selectedDate = overview.date;
+  await Promise.all(overview.modules.map(async block => {
+    const m = block.module;
+    const [history, weeks, months] = await Promise.all([
+      api("/modules/" + m + "/history?days=90").catch(() => null),
+      api("/modules/" + m + "/aggregates?period=week&count=8").catch(() => null),
+      api("/modules/" + m + "/aggregates?period=month&count=4").catch(() => null),
+    ]);
+    cache.histories[m] = history;
+    cache.weeks[m] = weeks;
+    cache.months[m] = months;
+  }));
+}
+
+/* ---------- day view ---------- */
+function dayCard(block) {
+  const m = block.module;
+  const idx = historyIndex(cache.histories[m]);
+  const dayData = idx[selectedDate];
+  const prevData = idx[addDays(selectedDate, -1)];
+  const isToday = selectedDate === cache.overview.date;
+  let rows;
+  if (!dayData) {
+    rows = '<div class="empty">Aucune donnée pour cette date.</div>';
+  } else {
+    rows = Object.keys(dayData).filter(k => k !== "__is_final").map(name => {
+      const metric = dayData[name];
+      const prev = prevData ? prevData[name] : null;
+      return '<div class="metric"><span class="name">' + esc(metric.label || name) + "</span>" +
+        sparkline(metricSeries(cache.histories[m], name, 14)) +
+        delta(metric.value, prev ? prev.value : null) +
+        '<span class="value">' + fmtNum(metric.value, metric.unit) + "</span></div>";
+    }).join("");
   }
-  const links = (summary && summary.deep_links || []).map(l => '<a href="' + esc(l.href) + '">' + esc(l.label) + "</a>").join(" · ");
   const err = block.last_error ? '<div class="error-line">Dernière erreur : ' + esc(block.last_error.code) + "</div>" : "";
   const sync = block.freshness && block.freshness.synchronized_at;
-  return '<div class="card">' +
-    "<h3>" + esc(block.display_name) + " " + badge(block.freshness) + "</h3>" +
-    (summary ? '<div class="meta">Journée du ' + esc(summary.date) + " (" + esc(summary.timezone) + ")</div>" : "") +
-    rows + err +
-    '<div class="meta">Synchronisé : ' + fmtDate(sync) + (links ? " · " + links : "") + "</div>" +
-    "</div>";
+  return '<div class="card"><h3>' + esc(block.display_name) + " " + (isToday ? badge(block.freshness) : "") + "</h3>" +
+    rows + (isToday ? err : "") +
+    '<div class="meta">' + (isToday ? "Synchronisé : " + (sync ? new Date(sync).toLocaleTimeString("fr-FR") : "—") + " · vs veille · barres : 14 j" : "Journée archivée · vs veille") + "</div></div>";
 }
 
+function renderDay() {
+  const today = cache.overview.date;
+  const atToday = selectedDate >= today;
+  return '<div class="daynav">' +
+    '<button class="ghost" id="day-prev">‹</button>' +
+    '<span class="date">' + fmtDayLong(selectedDate) + "</span>" +
+    '<button class="ghost" id="day-next"' + (atToday ? " disabled" : "") + ">›</button>" +
+    (atToday ? "" : '<button class="ghost" id="day-today">Aujourd\'hui</button>') +
+    "</div>" +
+    '<div class="grid">' + cache.overview.modules.map(dayCard).join("") + "</div>";
+}
+
+/* ---------- period views (week / month) ---------- */
+function sumLastDays(history, from, to) {
+  const idx = historyIndex(history);
+  const totals = {};
+  for (let d = from; d <= to; d = addDays(d, 1)) {
+    const day = idx[d];
+    if (!day) continue;
+    Object.keys(day).filter(k => k !== "__is_final").forEach(name => {
+      const metric = day[name];
+      const unit = String(metric.unit || "").toLowerCase();
+      if ((unit === "count" || unit === "xof") && typeof metric.value === "number") {
+        totals[name] = totals[name] || { label: metric.label || name, unit: metric.unit, value: 0 };
+        totals[name].value += metric.value;
+      }
+    });
+  }
+  return totals;
+}
+
+function rollingStrip() {
+  const today = cache.overview.date;
+  const items = cache.overview.modules.map(block => {
+    const history = cache.histories[block.module];
+    const current = sumLastDays(history, addDays(today, -6), today);
+    const previous = sumLastDays(history, addDays(today, -13), addDays(today, -7));
+    const parts = Object.keys(current).map(name =>
+      '<div class="item"><div class="k">' + esc(block.display_name) + " · " + esc(current[name].label) + '</div><div class="v">' +
+      fmtNum(current[name].value, current[name].unit) + " " + delta(current[name].value, previous[name] ? previous[name].value : null) + "</div></div>"
+    ).join("");
+    return parts;
+  }).join("");
+  return '<div class="wide-card"><h3>7 derniers jours <span class="tag">vs les 7 précédents</span></h3><div class="strip">' +
+    (items || '<span class="empty">Aucune donnée.</span>') + "</div></div>";
+}
+
+function bucketLabel(bucket, period) {
+  if (period === "week") {
+    return esc(bucket.key.replace(/^\d+-/, "")) + " · " + fmtDayShort(bucket.start) + " – " + fmtDayShort(bucket.end);
+  }
+  return new Date(bucket.start + "T12:00:00").toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+}
+
+function periodCard(block, aggregates, period) {
+  const buckets = (aggregates && aggregates.buckets || []).filter(b => b.days_with_data > 0);
+  if (!buckets.length) {
+    return '<div class="card"><h3>' + esc(block.display_name) + '</h3><div class="empty">Aucune donnée agrégée.</div></div>';
+  }
+  const names = [];
+  buckets.forEach(b => b.metrics.forEach(m => { if (!names.includes(m.name)) names.push(m.name); }));
+  const labels = {};
+  buckets.forEach(b => b.metrics.forEach(m => { labels[m.name] = m.label || m.name; }));
+  const header = "<tr><th>Période</th>" + names.map(n => "<th>" + esc(labels[n]) + "</th>").join("") + "</tr>";
+  const rows = buckets.slice().reverse().map((bucket, i, arr) => {
+    const previous = arr[i + 1];
+    const values = {};
+    bucket.metrics.forEach(m => { values[m.name] = m; });
+    const prevValues = {};
+    (previous ? previous.metrics : []).forEach(m => { prevValues[m.name] = m; });
+    const cells = names.map(n => {
+      const metric = values[n];
+      if (!metric) return "<td>—</td>";
+      return "<td>" + fmtNum(metric.value, metric.unit) + " " +
+        delta(metric.value, prevValues[n] ? prevValues[n].value : null) + "</td>";
+    }).join("");
+    const partial = bucket.is_complete ? "" : ' <span class="partial-note">(en cours · ' + bucket.days_with_data + "/" + bucket.expected_days + " j)</span>";
+    return "<tr><td>" + bucketLabel(bucket, period) + partial + "</td>" + cells + "</tr>";
+  }).join("");
+  return '<div class="card" style="grid-column:1/-1"><h3>' + esc(block.display_name) + '</h3><div class="table-wrap"><table><thead>' +
+    header + "</thead><tbody>" + rows + "</tbody></table></div></div>";
+}
+
+function renderPeriod(period) {
+  const source = period === "week" ? cache.weeks : cache.months;
+  return (period === "week" ? rollingStrip() : "") +
+    '<div class="grid">' + cache.overview.modules.map(b => periodCard(b, source[b.module], period)).join("") + "</div>";
+}
+
+/* ---------- sources ---------- */
 function sourcesTable(items) {
   const rows = items.map(s =>
-    "<tr><td>" + esc(s.display_name) + "</td><td>" + badge(s.freshness) + "</td><td>" + fmtDate(s.last_attempt_at) +
-    "</td><td>" + (s.consecutive_failures || 0) + "</td><td>" + (s.last_error ? esc(s.last_error.code) : "—") + "</td></tr>"
+    "<tr><td>" + esc(s.display_name) + "</td><td style='text-align:left'>" + badge(s.freshness) + "</td><td>" +
+    (s.last_attempt_at ? new Date(s.last_attempt_at).toLocaleString("fr-FR") : "—") +
+    "</td><td>" + (s.consecutive_failures || 0) + "</td><td style='text-align:left'>" + (s.last_error ? esc(s.last_error.code) : "—") + "</td></tr>"
   ).join("");
-  return "<table><thead><tr><th>Source</th><th>État</th><th>Dernière tentative</th><th>Échecs consécutifs</th><th>Erreur</th></tr></thead><tbody>" + rows + "</tbody></table>";
+  return "<h2>Sources de collecte</h2><div class='table-wrap'><table><thead><tr><th>Source</th><th style='text-align:left'>État</th><th>Dernière tentative</th><th>Échecs consécutifs</th><th style='text-align:left'>Erreur</th></tr></thead><tbody>" + rows + "</tbody></table></div>";
 }
 
-function rangeSelector() {
-  return '<div class="range-bar">' + [7, 14, 30].map(d =>
-    '<button class="ghost' + (d === rangeDays ? " on" : "") + '" data-range="' + d + '">' + d + " j</button>"
-  ).join("") + "</div>";
+/* ---------- shell ---------- */
+function tabsBar() {
+  const defs = [["day", "Jour"], ["week", "Semaine"], ["month", "Mois"]];
+  return '<div class="tabs">' + defs.map(([id, label]) =>
+    '<button class="ghost' + (tab === id ? " on" : "") + '" data-tab="' + id + '">' + label + "</button>").join("") + "</div>";
 }
 
-async function renderDashboard() {
+function renderDashboard() {
+  const app = document.getElementById("app");
+  const body = tab === "day" ? renderDay() : renderPeriod(tab);
+  app.innerHTML = tabsBar() + body + sourcesTable(cache.sources.items);
+  app.querySelectorAll("[data-tab]").forEach(btn => {
+    btn.onclick = () => { tab = btn.dataset.tab; sessionStorage.setItem("pilotage_tab", tab); renderDashboard(); };
+  });
+  const prev = document.getElementById("day-prev");
+  if (prev) prev.onclick = () => { selectedDate = addDays(selectedDate, -1); renderDashboard(); };
+  const next = document.getElementById("day-next");
+  if (next) next.onclick = () => { selectedDate = addDays(selectedDate, 1); renderDashboard(); };
+  const todayBtn = document.getElementById("day-today");
+  if (todayBtn) todayBtn.onclick = () => { selectedDate = cache.overview.date; renderDashboard(); };
+}
+
+async function refresh() {
   const app = document.getElementById("app");
   try {
-    const [overview, sources] = await Promise.all([api("/overview"), api("/sources")]);
-    const histories = {};
-    await Promise.all(overview.modules.map(async block => {
-      try { histories[block.module] = await api("/modules/" + block.module + "/history?days=" + rangeDays); }
-      catch { histories[block.module] = null; }
-    }));
-    app.innerHTML =
-      '<div class="section-head"><h2>Vue d\'ensemble — ' + esc(overview.date) + " · " + rangeDays + " derniers jours</h2>" + rangeSelector() + "</div>" +
-      '<div class="grid">' + overview.modules.map(b => moduleCard(b, histories[b.module])).join("") + "</div>" +
-      "<h2>Sources de collecte</h2>" + sourcesTable(sources.items);
-    app.querySelectorAll("[data-range]").forEach(btn => {
-      btn.onclick = () => {
-        rangeDays = Number(btn.dataset.range);
-        sessionStorage.setItem("pilotage_range", String(rangeDays));
-        renderDashboard();
-      };
-    });
+    await loadAll();
+    renderDashboard();
   } catch (error) {
     app.innerHTML = '<div class="card"><div class="error-line">' + esc(error.message) + "</div></div>";
   }
 }
 
+/* ---------- session / login ---------- */
 function showSession() {
   const chip = document.getElementById("session-chip");
   chip.hidden = !session;
@@ -257,13 +408,13 @@ function boot() {
   session = token() && stored ? JSON.parse(stored) : null;
   showSession();
   if (!session) return renderLogin();
-  renderDashboard();
+  refresh();
   if (refreshTimer) clearInterval(refreshTimer);
-  refreshTimer = setInterval(renderDashboard, 30000);
+  refreshTimer = setInterval(refresh, 60000);
 }
 
 document.getElementById("logout-btn").onclick = () => logout();
-document.getElementById("refresh-btn").onclick = () => renderDashboard();
+document.getElementById("refresh-btn").onclick = () => refresh();
 boot();
 </script>
 </body>
