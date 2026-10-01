@@ -28,7 +28,7 @@ def service_client_id(module: str) -> str:
     return _env(module, "SERVICE_CLIENT_ID") or _shared("CLIENT_ID")
 
 
-def get_service_token(module: str, *, scope: str | None = None) -> str:
+def get_service_token(module: str, *, scope: str | None = None, audience: str | None = None) -> str:
     """Return a short-lived S2S token for one module audience and scope.
 
     A per-module static token wins during migration; otherwise the shared
@@ -39,7 +39,8 @@ def get_service_token(module: str, *, scope: str | None = None) -> str:
     static_token = _env(module, "SERVICE_TOKEN")
     if static_token:
         return static_token
-    cache_key = f"{module}:{scope or ''}"
+    resolved_audience = audience or _env(module, "SERVICE_AUDIENCE") or module
+    cache_key = f"{module}:{resolved_audience}:{scope or ''}"
     cached = _token_cache.get(cache_key)
     if cached and cached[1] > time.time():
         return cached[0]
@@ -49,8 +50,7 @@ def get_service_token(module: str, *, scope: str | None = None) -> str:
     if not token_url or not client_id or not client_secret:
         return ""
     data = {"grant_type": "client_credentials", "client_id": client_id, "client_secret": client_secret}
-    audience = _env(module, "SERVICE_AUDIENCE") or module
-    data["audience"] = audience
+    data["audience"] = resolved_audience
     if scope:
         data["scope"] = scope
     with httpx.Client(timeout=10.0) as client:

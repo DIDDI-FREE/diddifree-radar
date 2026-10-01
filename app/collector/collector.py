@@ -15,6 +15,7 @@ from app.core.logging import log_json
 from app.sources.catalog import enabled_modules
 from app.sources.client import PilotageSourceClient
 from app.sources.gateway import SourceError
+from app.sources.normalization import normalize_daily_summary
 
 DAILY_KIND = "daily"
 
@@ -42,7 +43,7 @@ async def collect_daily_summary(
     target_date = date or business_today()
     client = client or PilotageSourceClient(module)
     try:
-        payload = await client.daily_summary(target_date)
+        payload = normalize_daily_summary(module, await client.daily_summary(target_date))
         summary = PilotageSummary.model_validate(payload)
     except SourceError as error:
         if update_state:

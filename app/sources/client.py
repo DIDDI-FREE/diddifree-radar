@@ -20,7 +20,7 @@ class PilotageSourceClient(SourceGateway):
     async def daily_summary(self, date: str) -> dict:
         if not _DATE_PATTERN.fullmatch(date):
             raise ValueError("date must be YYYY-MM-DD")
-        return await self.get(f"{self.source.summary_base()}/daily-summary", params={"date": date})
+        return await self.get(self.source.daily_summary_path(), params={"date": date})
 
     async def finance_summary(self, date: str) -> dict:
         if not _DATE_PATTERN.fullmatch(date):

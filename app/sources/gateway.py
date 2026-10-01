@@ -56,7 +56,11 @@ class SourceGateway:
             headers.setdefault("X-Request-ID", request_id)
         if self.source.requires_token:
             try:
-                token = get_service_token(self.source.key, scope=self.source.scope())
+                token = get_service_token(
+                    self.source.key,
+                    scope=self.source.scope(),
+                    audience=self.source.audience(),
+                )
             except httpx.HTTPError as error:
                 log_json({"event": "source_error", "source": self.source.key, "path": path, "category": "token_endpoint_failure", "error": str(error)})
                 raise SourceUnavailable(self.source.key, "token_endpoint_failure", "service token endpoint rejected or unavailable") from error

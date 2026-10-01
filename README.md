@@ -15,7 +15,7 @@ Protocol references:
 ```text
 collector (scripts/run_collector.py, every PILOTAGE_COLLECT_INTERVAL_SECONDS)
   -> PilotageSourceClient per module
-       GET {module}/internal/pilotage/daily-summary?date=YYYY-MM-DD
+       GET {module-specific daily summary path}?date=YYYY-MM-DD
        Authorization: Bearer <S2S token, client_id=pilotage-staging, scope=<module>:pilotage-summary:read>
   -> validate against pilotage.v1 (app/contracts/pilotage.py)
   -> store in pilotage_summaries; state in pilotage_source_state
@@ -33,10 +33,10 @@ only update `pilotage_source_state`; the last valid summary keeps being
 served with freshness `stale`. A module that has never answered reports
 `unavailable`. Default window: fresh <= 60s since the last success.
 
-No upstream module exposes `/internal/pilotage/*` yet — until each one
-ships its route, its source reports `unavailable` with
-`last_error.code = "route_missing"`. Nothing breaks; the day the route
-appears, collection starts working with zero changes here.
+The current DiddiGo, DiddiSend and DiddiPay contracts expose
+`/internal/pilotage/daily-summary`; DiddiFreeID exposes
+`/internal/pilotage/identity-summary`. Paths, audiences and scopes remain
+overridable per module so a contract migration does not require browser changes.
 
 ## Auth
 
