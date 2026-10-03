@@ -172,8 +172,25 @@ async def collect_breakdown(module: str, *, date: str, dimension: str, metric: s
 async def collect_default_breakdowns(module: str, *, date: str, client: PilotageSourceClient | None = None) -> dict:
     client = client or PilotageSourceClient(module)
     pairs = [(dimension, metric) for dimension, metrics in BREAKDOWN_MATRIX.get(module, {}).items() for metric in metrics]
-    results = [await collect_breakdown(module, date=date, dimension=dimension, metric=metric, client=client) for dimension, metric in pairs]
+    concurrency = max(1, min(int(os.getenv("PILOTAGE_BREAKDOWN_CONCURRENCY", "5")), 10))
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def one(dimension: str, metric: str):
+        async with semaphore:
+            return await collect_breakdown(module, date=date, dimension=dimension, metric=metric, client=client)
+
+    results = await asyncio.gather(*(one(dimension, metric) for dimension, metric in pairs))
     return {"module": module, "date": date, "collected": sum(result["status"] == "collected" for result in results), "failed": sum(result["status"] != "collected" for result in results), "results": results}
+
+
+async def backfill_default_breakdowns(module: str, *, days: int, client: PilotageSourceClient | None = None) -> dict:
+    days = max(1, min(days, 90))
+    client = client or PilotageSourceClient(module)
+    today = date_type.fromisoformat(business_today())
+    results = []
+    for offset in range(days, 0, -1):
+        results.append(await collect_default_breakdowns(module, date=(today - timedelta(days=offset)).isoformat(), client=client))
+    return {"module": module, "days": days, "collected": sum(item["collected"] for item in results), "failed": sum(item["failed"] for item in results), "dates": results}
 
 
 async def collect_all(*, date: str | None = None) -> list[dict]:

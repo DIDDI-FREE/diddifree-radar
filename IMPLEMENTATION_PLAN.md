@@ -295,7 +295,7 @@ Volume net
 
 ## Sprint 5 — granularité opérationnelle
 
-**État : en cours**
+**État : terminé pour DiddiGo et DiddiSend ; extensions DiddiFood et DiddiMap dépendantes des équipes externes**
 
 **But :** permettre de comprendre où, quand et pourquoi les performances évoluent.
 
@@ -313,7 +313,10 @@ Volume net
 - matrices DiddiGo et DiddiSend alignées sur leurs contrats mis à jour ;
 - agrégation locale des ventilations par semaine et mois ;
 - collecte groupée de toutes les combinaisons officiellement supportées ;
-- recette staging tentée : DiddiGo `404` et DiddiSend `403`, versions locales non encore déployées complètement.
+- recette staging réussie après mise à jour des deux API : 10 combinaisons DiddiGo et 19 combinaisons DiddiSend ;
+- backfill de cinq jours réussi : 50 ventilations DiddiGo et 95 ventilations DiddiSend, sans échec ;
+- concurrence de collecte limitée et configurable pour maîtriser la charge sur les modules ;
+- onglet `Analyses` avec ventilations hebdomadaires par heure, paiement, service, ville et catégorie selon le module.
 
 ### Dimensions à exposer par les modules
 
@@ -334,6 +337,10 @@ Volume net
 - masquer les regroupements trop petits si nécessaire ;
 - préparer l'intégration DiddiFood ;
 - préparer les indicateurs géographiques DiddiMap.
+
+Les filtres actuellement exposés dans l'interface couvrent les dimensions livrées
+par DiddiGo et DiddiSend. Les revenus détaillés des participants, DiddiFood et
+DiddiMap seront ajoutés quand leurs contrats et accès seront disponibles.
 
 ### Revenus des participants
 
@@ -450,11 +457,10 @@ Chaque alerte possède une gravité, un propriétaire, un statut, une échéance
 
 ## Ordre d'exécution immédiat
 
-1. Sprint 5 : définir et intégrer les ventilations agrégées.
-2. Préparer DiddiFood et DiddiMap comme nouvelles sources.
-3. Sprint 6 : objectifs, alertes et rapports.
-4. Sprint 7 : déploiement et recette.
-5. Brancher les compléments DiddiPay et DiddiGo dès livraison externe.
+1. Sprint 6 : objectifs, alertes et rapports.
+2. Préparer DiddiFood et DiddiMap comme nouvelles sources dès réception des accès.
+3. Sprint 7 : déploiement et recette.
+4. Brancher les compléments DiddiPay et DiddiGo dès livraison externe.
 
 ## Définition de terminé
 

@@ -83,3 +83,36 @@ rencontrés, reste côté Pilotage et reste externe.
   agrégés de son ledger chauffeur ;
 - équipes Finance : valider les définitions de revenu généré, encaissé, dû et
   versé.
+
+## Sprint 5 — granularité opérationnelle
+
+### Réalisé
+
+- contrat agrégé `pilotage.breakdown.v1`, sans opération brute ni donnée personnelle ;
+- collecte et stockage des ventilations DiddiGo et DiddiSend ;
+- agrégats semaine et mois, avec contrôle exact du total parent ;
+- concurrence limitée à cinq requêtes par défaut et configurable ;
+- routes de lecture, collecte groupée et backfill protégées par les droits Pilotage ;
+- onglet `Analyses` pour les dimensions réellement disponibles ;
+- recette staging des 29 combinaisons supportées ;
+- backfill de cinq jours : 50 ventilations DiddiGo et 95 DiddiSend, aucun échec ;
+- 71 tests automatisés réussis.
+
+### Blocages rencontrés
+
+- les premières versions staging répondaient `404` pour DiddiGo et `403` pour DiddiSend ;
+- l'accès DiddiFood exige un client de service dédié ;
+- aucun dépôt DiddiMap n'est disponible dans la composition locale.
+
+### Reste côté Pilotage
+
+- aucun élément bloquant pour les ventilations DiddiGo et DiddiSend ;
+- brancher DiddiFood et DiddiMap dès que leurs contrats et accès sont fournis ;
+- ajouter les revenus détaillés des participants quand les modules les exposent.
+
+### Reste externe
+
+- DiddiFood : fournir le client staging dédié et son contrat de ventilations ;
+- DiddiMap : fournir le dépôt ou le contrat API et l'accès staging ;
+- DiddiGo et DiddiSend : exposer les montants attribués, payés et dus par catégorie de participant si cette vue est souhaitée ;
+- renouveler les secrets DiddiGo et DiddiSend avant la production, comme déjà planifié.

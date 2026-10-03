@@ -3,7 +3,7 @@ import unittest
 
 from fastapi.testclient import TestClient
 
-from app.collector.collector import collect_breakdown
+from app.collector.collector import backfill_default_breakdowns, collect_breakdown
 from app.core.db import execute, init_db
 from app.main import app
 from tests.test_api import DG_HEADERS, MODULE_MANAGER_HEADERS
@@ -40,6 +40,12 @@ class BreakdownCollectionTests(unittest.TestCase):
         bucket = response.json()["buckets"][0]
         self.assertEqual(bucket["total"], 20)
         self.assertEqual({item["key"]: item["value"] for item in bucket["items"]}, {"cash": 12, "wave": 8})
+
+    def test_default_backfill_collects_every_supported_pair_for_each_day(self):
+        result = asyncio.run(backfill_default_breakdowns("diddigo", days=2, client=FakeBreakdownClient()))
+        self.assertEqual(result["collected"], 20)
+        self.assertEqual(result["failed"], 0)
+        self.assertEqual(len(result["dates"]), 2)
 
 
 if __name__ == "__main__":

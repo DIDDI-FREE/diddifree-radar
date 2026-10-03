@@ -89,7 +89,21 @@ let session = null;
 let refreshTimer = null;
 let tab = sessionStorage.getItem("pilotage_tab") || "day";
 let selectedDate = null; // ISO; set from overview on load
-const cache = { overview: null, sources: null, finance: null, financeWeeks: {}, histories: {}, weeks: {}, months: {} };
+const cache = { overview: null, sources: null, finance: null, financeWeeks: {}, histories: {}, weeks: {}, months: {}, breakdowns: {} };
+
+const BREAKDOWN_VIEWS = {
+  diddigo: [
+    ["hour", "rides_requested", "Demandes par heure"],
+    ["payment_method", "rides_completed", "Courses terminées par paiement"],
+    ["service_type", "rides_completed", "Courses terminées par service"],
+  ],
+  diddisend: [
+    ["hour", "deliveries_requested", "Demandes par heure"],
+    ["payment_method", "deliveries_completed", "Livraisons terminées par paiement"],
+    ["pickup_city", "deliveries_completed", "Livraisons par ville de départ"],
+    ["participant_category", "deliveries_completed", "Livraisons par catégorie de participant"],
+  ],
+};
 
 function token() { return sessionStorage.getItem("pilotage_token") || ""; }
 
@@ -213,6 +227,10 @@ async function loadAll() {
     cache.weeks[m] = weeks;
     cache.months[m] = months;
   }));
+  await Promise.all(overview.modules.flatMap(block => (BREAKDOWN_VIEWS[block.module] || []).map(async ([dimension, metric]) => {
+    const key = block.module + ":" + dimension + ":" + metric;
+    cache.breakdowns[key] = await api("/modules/" + block.module + "/breakdown-aggregates?dimension=" + dimension + "&metric=" + metric + "&period=week&count=8").catch(() => null);
+  })));
 }
 
 /* ---------- day view ---------- */
@@ -360,6 +378,27 @@ function renderFinance() {
     periodCard(blocks.diddigo, cache.financeWeeks.diddigo, "week") + periodCard(blocks.diddisend, cache.financeWeeks.diddisend, "week") + '</div>';
 }
 
+/* ---------- granular analyses ---------- */
+function breakdownCard(module, dimension, metric, title) {
+  const data = cache.breakdowns[module + ":" + dimension + ":" + metric];
+  const buckets = (data && data.buckets || []).filter(bucket => bucket.days_with_data > 0);
+  if (!buckets.length) return '<div class="card"><h3>' + esc(title) + '</h3><div class="empty">Aucune ventilation collectée.</div></div>';
+  const bucket = buckets[buckets.length - 1];
+  const items = (bucket.items || []).slice().sort((a, b) => numericValue(b.value) - numericValue(a.value));
+  const rows = items.map(item => '<tr><td>' + esc(item.label || item.key) + '</td><td>' + fmtNum(item.value, bucket.unit) + '</td></tr>').join("");
+  const coverage = bucket.is_complete ? "semaine complète" : bucket.days_with_data + "/" + bucket.expected_days + " jours disponibles";
+  return '<div class="card"><h3>' + esc(title) + '</h3><div class="table-wrap"><table><thead><tr><th>Segment</th><th>Valeur</th></tr></thead><tbody>' +
+    rows + '</tbody></table></div><div class="meta">' + fmtDayShort(bucket.start) + ' – ' + fmtDayShort(bucket.end) + ' · ' + esc(coverage) + '</div></div>';
+}
+
+function renderBreakdowns() {
+  const cards = cache.overview.modules.flatMap(block => (BREAKDOWN_VIEWS[block.module] || []).map(([dimension, metric, title]) =>
+    breakdownCard(block.module, dimension, metric, block.display_name + " · " + title)
+  )).join("");
+  return '<div class="wide-card"><h3>Vue granulaire</h3><div class="meta">Ventilations agrégées sur la semaine courante, selon les données collectées par chaque module.</div></div><div class="grid">' +
+    (cards || '<div class="card"><div class="empty">Aucune ventilation disponible pour vos modules.</div></div>') + '</div>';
+}
+
 /* ---------- sources ---------- */
 function sourcesTable(items) {
   const rows = items.map(s =>
@@ -372,7 +411,7 @@ function sourcesTable(items) {
 
 /* ---------- shell ---------- */
 function tabsBar() {
-  const defs = [["day", "Jour"], ["week", "Semaine"], ["month", "Mois"]];
+  const defs = [["day", "Jour"], ["week", "Semaine"], ["month", "Mois"], ["breakdowns", "Analyses"]];
   if (session && ["dg_global", "finance_admin"].includes(session.role)) defs.push(["finance", "Finance"]);
   return '<div class="tabs">' + defs.map(([id, label]) =>
     '<button class="ghost' + (tab === id ? " on" : "") + '" data-tab="' + id + '">' + label + "</button>").join("") + "</div>";
@@ -391,7 +430,7 @@ function statusBand() {
 
 function renderDashboard() {
   const app = document.getElementById("app");
-  const body = tab === "day" ? renderDay() : tab === "finance" ? renderFinance() : renderPeriod(tab);
+  const body = tab === "day" ? renderDay() : tab === "finance" ? renderFinance() : tab === "breakdowns" ? renderBreakdowns() : renderPeriod(tab);
   app.innerHTML = statusBand() + tabsBar() + body + sourcesTable(cache.sources.items);
   app.querySelectorAll("[data-tab]").forEach(btn => {
     btn.onclick = () => { tab = btn.dataset.tab; sessionStorage.setItem("pilotage_tab", tab); renderDashboard(); };

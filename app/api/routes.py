@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from datetime import date as date_type, timedelta
 
 from app.collector import store
-from app.collector.collector import DAILY_KIND, FINANCE_KIND, backfill_finance_module, backfill_module, breakdown_kind, business_timezone, business_today, collect_breakdown, collect_daily_summary, collect_default_breakdowns, collect_finance_summary
+from app.collector.collector import DAILY_KIND, FINANCE_KIND, backfill_default_breakdowns, backfill_finance_module, backfill_module, breakdown_kind, business_timezone, business_today, collect_breakdown, collect_daily_summary, collect_default_breakdowns, collect_finance_summary
 from app.collector.rollups import aggregate_periods
 from app.collector.breakdown_rollups import aggregate_breakdowns
 from app.core.auth import COLLECT_ROLES, FINANCE_ROLES, PilotagePrincipal, get_principal, require_module_access, require_role
@@ -329,6 +329,18 @@ async def trigger_default_breakdowns(
     require_role(principal, COLLECT_ROLES)
     require_module_access(principal, module)
     return {"result": await collect_default_breakdowns(module, date=date), "request_id": get_request_id()}
+
+
+@router.post("/sources/{module}/backfill-default-breakdowns")
+async def trigger_default_breakdown_backfill(
+    module: str,
+    days: int = Query(default=5, ge=1, le=90),
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    _known_module(module)
+    require_role(principal, COLLECT_ROLES)
+    require_module_access(principal, module)
+    return {"result": await backfill_default_breakdowns(module, days=days), "request_id": get_request_id()}
 
 
 @router.get("/sources")
