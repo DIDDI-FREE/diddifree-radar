@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from datetime import date as date_type, timedelta
 
 from app.collector import store
-from app.collector.collector import DAILY_KIND, backfill_module, business_timezone, business_today, collect_daily_summary
+from app.collector.collector import DAILY_KIND, FINANCE_KIND, backfill_module, business_timezone, business_today, collect_daily_summary, collect_finance_summary
 from app.collector.rollups import aggregate_periods
 from app.core.auth import COLLECT_ROLES, FINANCE_ROLES, PilotagePrincipal, get_principal, require_module_access, require_role
 from app.core.request_context import get_request_id
@@ -167,6 +167,30 @@ def module_aggregates(
             for bucket in aggregate_periods(module, period=period, count=count, today=today)
         ],
     }
+
+
+@router.get("/modules/{module}/finance-summary")
+def module_finance_summary(
+    module: str,
+    date: str | None = Query(default=None),
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    _known_module(module)
+    require_role(principal, FINANCE_ROLES)
+    require_module_access(principal, module)
+    record = store.latest_summary(module, FINANCE_KIND, summary_date=date)
+    if not record:
+        raise HTTPException(status_code=404, detail={"error": {"code": "finance_summary_unavailable", "message": "No finance summary is available"}})
+    _audit_financial_access(principal, "finance-summary", module)
+    return {"summary": record["payload"], "revision": record["revision"], "collected_at": record["collected_at"]}
+
+
+@router.post("/sources/{module}/collect-finance")
+async def trigger_finance_collection(module: str, principal: PilotagePrincipal = Depends(get_principal)) -> dict:
+    _known_module(module)
+    require_role(principal, COLLECT_ROLES & FINANCE_ROLES)
+    require_module_access(principal, module)
+    return {"result": await collect_finance_summary(module), "request_id": get_request_id()}
 
 
 @router.get("/sources")

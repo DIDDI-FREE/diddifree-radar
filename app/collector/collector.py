@@ -18,6 +18,7 @@ from app.sources.gateway import SourceError
 from app.sources.normalization import normalize_daily_summary
 
 DAILY_KIND = "daily"
+FINANCE_KIND = "finance"
 
 
 def business_timezone() -> ZoneInfo:
@@ -93,6 +94,23 @@ async def backfill_module(module: str, *, days: int, client: PilotageSourceClien
                 break
     log_json({"event": "backfill_finished", "module": module, "days": days, "collected": collected, "failed": failed})
     return {"module": module, "days": days, "collected": collected, "failed": failed, "last_error_code": last_code}
+
+
+async def collect_finance_summary(module: str, *, date: str | None = None, client: PilotageSourceClient | None = None) -> dict:
+    target_date = date or business_today()
+    client = client or PilotageSourceClient(module)
+    try:
+        payload = normalize_daily_summary(module, await client.finance_summary(target_date))
+        summary = PilotageSummary.model_validate(payload)
+    except SourceError as error:
+        store.record_failure(module, FINANCE_KIND, error.code, str(error))
+        return {"module": module, "date": target_date, "status": "failed", "code": error.code}
+    except ValidationError:
+        store.record_failure(module, FINANCE_KIND, "contract_invalid", "finance summary does not match pilotage.v1")
+        return {"module": module, "date": target_date, "status": "failed", "code": "contract_invalid"}
+    store.save_summary(module, FINANCE_KIND, summary.date.isoformat(), summary.model_dump(mode="json"), summary.calculated_at.isoformat(), summary.is_final)
+    store.record_success(module, FINANCE_KIND)
+    return {"module": module, "date": summary.date.isoformat(), "status": "collected"}
 
 
 async def collect_all(*, date: str | None = None) -> list[dict]:

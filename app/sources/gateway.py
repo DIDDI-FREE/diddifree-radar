@@ -48,7 +48,7 @@ class SourceGateway:
         total = float(os.getenv("PILOTAGE_SOURCE_TIMEOUT_SECONDS", "10"))
         return httpx.Timeout(total, connect=min(total, 5.0))
 
-    async def get(self, path: str, *, params: dict[str, Any] | None = None) -> dict:
+    async def get(self, path: str, *, params: dict[str, Any] | None = None, scope: str | None = None) -> dict:
         path = _controlled_path(path)
         headers = dict(service_request_headers(self.source.key))
         request_id = get_request_id()
@@ -58,7 +58,7 @@ class SourceGateway:
             try:
                 token = get_service_token(
                     self.source.key,
-                    scope=self.source.scope(),
+                    scope=scope or self.source.scope(),
                     audience=self.source.audience(),
                 )
             except httpx.HTTPError as error:

@@ -27,8 +27,9 @@ Pilotage reste en lecture seule. Les opérations sensibles sont réalisées dans
 | Sprint 0 | terminé | Contrats, routes, scopes et KPI identifiés |
 | Sprint 1 | terminé | DiddiFreeID, DiddiGo, DiddiSend et DiddiPay collectés en staging |
 | Sprint 2 | terminé | Agrégations, ratios, corrections et backfill staging validés |
-| Sprint 3 | en cours | Écran Direction générale et droits |
-| Sprints 4 à 7 | à faire | Finance, granularité, alertes et déploiement |
+| Sprint 3 | en cours | Écran Direction générale, droits et API réutilisable |
+| Sprint 4 | en cours | Première collecte financière DiddiSend validée en staging |
+| Sprints 5 à 7 | à faire | Granularité, alertes et déploiement |
 
 ### Fondation déjà disponible
 
@@ -231,7 +232,17 @@ Afficher une journée, une semaine et un mois contenant une journée incomplète
 
 ## Sprint 4 — revenus et rapprochement financier
 
+**État : en cours**
+
 **But :** séparer clairement ce que paie le client, ce que reçoit DiddiFree et ce qui revient aux participants.
+
+### Premier lot livré
+
+- route DiddiSend `/internal/pilotage/finance-summary` vérifiée dans le code propriétaire ;
+- scope `diddisend:pilotage:finance-summary:read` vérifié ;
+- collecte et stockage séparés sous le type `finance` ;
+- route Pilotage `GET /api/pilotage/modules/diddisend/finance-summary` réservée aux rôles financiers ;
+- recette staging `200` réussie pour le 2 octobre 2026.
 
 ### Modèle financier cible
 

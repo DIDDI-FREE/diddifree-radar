@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import os
 
 import httpx
 
@@ -25,7 +26,11 @@ class PilotageSourceClient(SourceGateway):
     async def finance_summary(self, date: str) -> dict:
         if not _DATE_PATTERN.fullmatch(date):
             raise ValueError("date must be YYYY-MM-DD")
-        return await self.get(f"{self.source.summary_base()}/finance-summary", params={"date": date})
+        scope = os.getenv(
+            f"PILOTAGE_{self.source.key.upper()}_FINANCE_SCOPE",
+            f"{self.source.key}:pilotage:finance-summary:read",
+        )
+        return await self.get(f"{self.source.summary_base()}/finance-summary", params={"date": date}, scope=scope)
 
     async def health_summary(self) -> dict:
         return await self.get(f"{self.source.summary_base()}/health-summary")
