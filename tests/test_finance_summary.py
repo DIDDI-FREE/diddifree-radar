@@ -57,8 +57,9 @@ class FinanceSummaryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertEqual(body["economics"]["module"], "diddisend")
+        self.assertEqual(body["economics_by_module"]["diddisend"]["module"], "diddisend")
         self.assertIsNone(body["payments"])
-        self.assertEqual(body["reconciliation"]["reason"], "diddipay_service_breakdown_missing")
+        self.assertIn("diddipay_service_breakdown_missing", body["reconciliation"]["blockers"])
 
     def test_operations_role_cannot_read_finance_overview(self):
         response = self.client.get("/api/pilotage/finance/overview", headers=OPERATIONS_HEADERS)

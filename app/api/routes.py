@@ -191,19 +191,25 @@ def finance_overview(
     principal: PilotagePrincipal = Depends(get_principal),
 ) -> dict:
     require_role(principal, FINANCE_ROLES)
+    diddigo = store.latest_summary("diddigo", FINANCE_KIND, summary_date=date)
     diddisend = store.latest_summary("diddisend", FINANCE_KIND, summary_date=date)
     diddipay = store.latest_summary("diddipay", DAILY_KIND, summary_date=date)
-    resolved_date = date or (diddisend or diddipay or {}).get("summary_date")
+    resolved_date = date or (diddigo or diddisend or diddipay or {}).get("summary_date")
     _audit_financial_access(principal, "finance-overview")
     return {
         "date": resolved_date,
         "timezone": str(business_timezone()),
         "economics": diddisend["payload"] if diddisend else None,
+        "economics_by_module": {
+            "diddigo": diddigo["payload"] if diddigo else None,
+            "diddisend": diddisend["payload"] if diddisend else None,
+        },
         "payments": diddipay["payload"] if diddipay else None,
         "reconciliation": {
             "status": "unavailable",
-            "reason": "diddipay_service_breakdown_missing",
-            "message": "DiddiPay totals are global and cannot yet be attributed safely to DiddiSend.",
+            "reason": "source_dimensions_missing",
+            "blockers": ["diddipay_service_breakdown_missing", "diddigo_wallet_breakdown_missing"],
+            "message": "DiddiPay totals are global and DiddiGo does not yet expose its wallet breakdown.",
         },
     }
 

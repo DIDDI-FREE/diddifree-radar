@@ -348,7 +348,9 @@ function renderFinance() {
   if (!finance) return '<div class="card"><div class="empty">Vue financière indisponible.</div></div>';
   const reconciliation = finance.reconciliation || {};
   return '<div class="wide-card"><h3>Rapprochement</h3><div class="error-line">' + esc(reconciliation.message || reconciliation.status) + '</div></div>' +
-    '<div class="grid">' + financeBlock("Économie DiddiSend", finance.economics) + financeBlock("Flux DiddiPay", finance.payments) + '</div>';
+    '<div class="grid">' + financeBlock("Économie DiddiGo", finance.economics_by_module && finance.economics_by_module.diddigo) +
+    financeBlock("Économie DiddiSend", finance.economics_by_module && finance.economics_by_module.diddisend || finance.economics) +
+    financeBlock("Flux DiddiPay", finance.payments) + '</div>';
 }
 
 /* ---------- sources ---------- */

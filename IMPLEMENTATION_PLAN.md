@@ -247,6 +247,10 @@ Afficher une journée, une semaine et un mois contenant une journée incomplète
 - vue financière séparant économie DiddiSend et flux DiddiPay ;
 - rapprochement marqué indisponible tant que DiddiPay ne fournit pas la dimension par service ;
 - onglet Finance visible uniquement par la Direction générale et la Finance.
+- backfill financier DiddiGo de cinq jours réussi sans échec ;
+- audit confirmé : wallets métiers DiddiGo/DiddiSend actifs, wallet DiddiPay legacy ;
+- découpage DiddiPay réalisable via `PaymentIntent.client_id`, mais absent de son agrégat actuel ;
+- contrat financier DiddiGo encore incomplet malgré une route disponible.
 
 ### Modèle financier cible
 

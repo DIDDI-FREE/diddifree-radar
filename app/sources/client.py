@@ -26,10 +26,12 @@ class PilotageSourceClient(SourceGateway):
     async def finance_summary(self, date: str) -> dict:
         if not _DATE_PATTERN.fullmatch(date):
             raise ValueError("date must be YYYY-MM-DD")
-        scope = os.getenv(
-            f"PILOTAGE_{self.source.key.upper()}_FINANCE_SCOPE",
-            f"{self.source.key}:pilotage:finance-summary:read",
+        default_scope = (
+            "diddisend:pilotage:finance-summary:read"
+            if self.source.key == "diddisend"
+            else self.source.scope()
         )
+        scope = os.getenv(f"PILOTAGE_{self.source.key.upper()}_FINANCE_SCOPE", default_scope)
         return await self.get(f"{self.source.summary_base()}/finance-summary", params={"date": date}, scope=scope)
 
     async def health_summary(self) -> dict:
