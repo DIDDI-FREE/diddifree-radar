@@ -19,6 +19,7 @@ class ApiTests(unittest.TestCase):
         init_db()
         execute("DELETE FROM pilotage_summaries")
         execute("DELETE FROM pilotage_source_state")
+        execute("DELETE FROM pilotage_financial_access_log")
         self.client = TestClient(app)
 
     def _collect_diddigo(self):
@@ -95,6 +96,14 @@ class ApiTests(unittest.TestCase):
         audit_headers = {"X-User-Id": "aud-1", "X-Role": "audit_read"}
         response = self.client.post("/api/pilotage/sources/diddigo/collect", headers=audit_headers)
         self.assertEqual(response.status_code, 403)
+
+    def test_financial_consultations_are_audited(self):
+        self.client.get("/api/pilotage/overview", headers=DG_HEADERS)
+        response = self.client.get("/api/pilotage/audit/financial-access", headers=DG_HEADERS)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["items"][0]["resource"], "overview")
+        denied = self.client.get("/api/pilotage/audit/financial-access", headers=OPERATIONS_HEADERS)
+        self.assertEqual(denied.status_code, 403)
 
 
 if __name__ == "__main__":

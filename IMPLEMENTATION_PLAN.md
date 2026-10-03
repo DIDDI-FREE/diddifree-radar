@@ -169,6 +169,9 @@ Afficher une journée, une semaine et un mois contenant une journée incomplète
 - masquage des montants XOF pour les rôles non financiers ;
 - filtrage de la page des sources selon les modules assignés ;
 - indication des journées corrigées dans l'historique.
+- comparaison quotidienne avec le même jour de la semaine précédente ;
+- journal protégé des consultations financières ;
+- affichage des liens profonds fournis par les modules.
 
 ### Écran principal
 

@@ -121,6 +121,20 @@ def all_source_states() -> list[dict]:
     return rows("SELECT * FROM pilotage_source_state ORDER BY module, kind")
 
 
+def record_financial_access(user_id: str, role: str, resource: str, module: str | None = None) -> None:
+    execute(
+        "INSERT INTO pilotage_financial_access_log (user_id, role, resource, module, accessed_at) VALUES (?, ?, ?, ?, ?)",
+        (user_id, role, resource, module, utc_now_iso()),
+    )
+
+
+def financial_access_log(limit: int = 100) -> list[dict]:
+    return rows(
+        "SELECT user_id, role, resource, module, accessed_at FROM pilotage_financial_access_log ORDER BY id DESC LIMIT ?",
+        (limit,),
+    )
+
+
 def _parse_iso(value: str | None) -> datetime | None:
     if not value:
         return None

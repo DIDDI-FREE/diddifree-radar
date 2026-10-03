@@ -46,6 +46,14 @@ CREATE TABLE IF NOT EXISTS pilotage_source_state (
   last_error_message TEXT,
   PRIMARY KEY (module, kind)
 );
+CREATE TABLE IF NOT EXISTS pilotage_financial_access_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  role TEXT NOT NULL,
+  resource TEXT NOT NULL,
+  module TEXT,
+  accessed_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS schema_migrations (
   id TEXT PRIMARY KEY,
   applied_at TEXT NOT NULL

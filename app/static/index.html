@@ -41,6 +41,7 @@
   .delta { font-size: 11px; font-weight: 700; white-space: nowrap; min-width: 56px; text-align: right; }
   .delta.up { color: var(--up); } .delta.down { color: var(--down); } .delta.flat { color: var(--muted); }
   .meta { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  .links { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; }
   .error-line { color: var(--unavailable); font-size: 12px; margin-top: 6px; }
   .empty { color: var(--muted); font-style: italic; padding: 8px 0; }
   table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12.5px; }
@@ -213,7 +214,7 @@ function dayCard(block) {
   const m = block.module;
   const idx = historyIndex(cache.histories[m]);
   const dayData = idx[selectedDate];
-  const prevData = idx[addDays(selectedDate, -1)];
+  const prevWeekData = idx[addDays(selectedDate, -7)];
   const isToday = selectedDate === cache.overview.date;
   let rows;
   if (!dayData) {
@@ -221,19 +222,21 @@ function dayCard(block) {
   } else {
     rows = Object.keys(dayData).filter(k => !k.startsWith("__")).map(name => {
       const metric = dayData[name];
-      const prev = prevData ? prevData[name] : null;
-      return '<div class="metric"><span class="name">' + esc(metric.label || name) + "</span>" +
+      const prevWeek = prevWeekData ? prevWeekData[name] : null;
+      return '<div class="metric"><span class="name" title="' + esc(metric.description || "") + '">' + esc(metric.label || name) + "</span>" +
         sparkline(metricSeries(cache.histories[m], name, 14)) +
-        delta(metric.value, prev ? prev.value : null) +
+        '<span title="Même jour la semaine précédente">' + delta(metric.value, prevWeek ? prevWeek.value : null) + '</span>' +
         '<span class="value">' + fmtNum(metric.value, metric.unit) + "</span></div>";
     }).join("");
   }
   const err = block.last_error ? '<div class="error-line">Dernière erreur : ' + esc(block.last_error.code) + "</div>" : "";
   const sync = block.freshness && block.freshness.synchronized_at;
+  const links = isToday && block.summary && block.summary.deep_links && block.summary.deep_links.length ?
+    '<div class="links">' + block.summary.deep_links.map(link => '<a href="' + esc(link.href) + '">' + esc(link.label) + '</a>').join("") + '</div>' : "";
   return '<div class="card"><h3>' + esc(block.display_name) + " " + (isToday ? badge(block.freshness) : "") + "</h3>" +
-    rows + (isToday ? err : "") +
+    rows + (isToday ? err : "") + links +
     '<div class="meta">' + (isToday ? "Synchronisé : " + (sync ? new Date(sync).toLocaleTimeString("fr-FR") : "—") + " · vs veille · barres : 14 j" :
-      (dayData && dayData.__state === "corrected" ? "Journée corrigée" : "Journée archivée") + " · vs veille") + "</div></div>";
+      (dayData && dayData.__state === "corrected" ? "Journée corrigée" : "Journée archivée") + " · comparaison J-7") + "</div></div>";
 }
 
 function renderDay() {

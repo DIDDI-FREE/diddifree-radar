@@ -41,6 +41,11 @@ def _visible_payload(payload: dict | None, principal: PilotagePrincipal) -> dict
     return visible
 
 
+def _audit_financial_access(principal: PilotagePrincipal, resource: str, module: str | None = None) -> None:
+    if principal.role in FINANCE_ROLES:
+        store.record_financial_access(principal.user_id, principal.role, resource, module)
+
+
 def _module_block(module: str, principal: PilotagePrincipal) -> dict:
     record = store.latest_summary(module, DAILY_KIND)
     state = store.source_state(module, DAILY_KIND)
@@ -66,6 +71,7 @@ def health() -> dict:
 @router.get("/overview")
 def overview(principal: PilotagePrincipal = Depends(get_principal)) -> dict:
     modules = [module for module in enabled_modules() if principal.can_view(module)]
+    _audit_financial_access(principal, "overview")
     return {
         "contract_version": "pilotage.v1",
         "date": business_today(),
@@ -101,6 +107,7 @@ def module_daily_summary(
                 }
             },
         )
+    _audit_financial_access(principal, "daily-summary", module)
     return {
         "summary": _visible_payload(record["payload"], principal),
         "freshness": freshness.model_dump(mode="json"),
@@ -121,6 +128,7 @@ def module_history(
     today = date_type.fromisoformat(business_today())
     from_date = (today - timedelta(days=days - 1)).isoformat()
     records = store.summaries_range(module, DAILY_KIND, from_date, today.isoformat())
+    _audit_financial_access(principal, "history", module)
     return {
         "module": module,
         "from": from_date,
@@ -150,6 +158,7 @@ def module_aggregates(
     _known_module(module)
     require_module_access(principal, module)
     today = date_type.fromisoformat(business_today())
+    _audit_financial_access(principal, "aggregates", module)
     return {
         "module": module,
         "period": period,
@@ -183,6 +192,15 @@ def sources(principal: PilotagePrincipal = Depends(get_principal)) -> dict:
             }
         )
     return {"items": items}
+
+
+@router.get("/audit/financial-access")
+def financial_audit(
+    limit: int = Query(default=100, ge=1, le=500),
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    require_role(principal, FINANCE_ROLES)
+    return {"items": store.financial_access_log(limit)}
 
 
 @router.post("/sources/{module}/collect")
