@@ -4,6 +4,12 @@ import csv
 import io
 from datetime import date
 
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import mm
+from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
 from app.alerts import list_alerts
 from app.collector import store
 from app.collector.collector import DAILY_KIND
@@ -52,3 +58,45 @@ def report_csv(report: dict) -> str:
                 metric.get("value"), metric.get("unit"), block["coverage"]["days_with_data"], block["coverage"]["expected_days"], block["coverage"]["is_complete"],
             ])
     return output.getvalue()
+
+
+def report_pdf(report: dict) -> bytes:
+    output = io.BytesIO()
+    styles = getSampleStyleSheet()
+    document = SimpleDocTemplate(output, pagesize=A4, rightMargin=16 * mm, leftMargin=16 * mm, topMargin=16 * mm, bottomMargin=16 * mm, title=f"DiddiFree Pilotage - {report['period']}")
+    story = [Paragraph("DiddiFree Pilotage", styles["Title"]), Paragraph(f"Rapport {report['period']} - ancrage {report['anchor']}", styles["Heading2"]), Spacer(1, 5 * mm)]
+    for index, block in enumerate(report["modules"]):
+        if index:
+            story.append(Spacer(1, 4 * mm))
+        story.append(Paragraph(block["display_name"], styles["Heading2"]))
+        coverage = block["coverage"]
+        freshness = block["freshness"].get("status", "unavailable")
+        story.append(Paragraph(f"Periode: {block['from']} au {block['to']} - couverture: {coverage['days_with_data']}/{coverage['expected_days']} jours - source: {freshness}", styles["BodyText"]))
+        data = [["Indicateur", "Valeur", "Unite"]]
+        data.extend([[metric.get("label") or metric.get("name"), str(metric.get("value", "")), metric.get("unit", "")] for metric in block["metrics"]])
+        if len(data) == 1:
+            data.append(["Aucune donnee", "", ""])
+        table = Table(data, colWidths=[105 * mm, 35 * mm, 22 * mm], repeatRows=1)
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e2530")), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"), ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#9aa4b2")),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f3f5f7")]),
+            ("LEFTPADDING", (0, 0), (-1, -1), 5), ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ]))
+        story.append(table)
+    if report["open_alerts"]:
+        story.extend([PageBreak(), Paragraph("Alertes ouvertes", styles["Heading1"])])
+        for alert in report["open_alerts"]:
+            story.append(Paragraph(f"[{alert['severity'].upper()}] {alert['title']} - {alert['message']}", styles["BodyText"]))
+            story.append(Spacer(1, 2 * mm))
+    document.build(story, onFirstPage=_page_footer, onLaterPages=_page_footer)
+    return output.getvalue()
+
+
+def _page_footer(canvas, document) -> None:
+    canvas.saveState()
+    canvas.setFont("Helvetica", 8)
+    canvas.setFillColor(colors.HexColor("#667085"))
+    canvas.drawString(16 * mm, 9 * mm, "DiddiFree Pilotage")
+    canvas.drawRightString(A4[0] - 16 * mm, 9 * mm, f"Page {document.page}")
+    canvas.restoreState()

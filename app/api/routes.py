@@ -16,8 +16,8 @@ from app.core.auth import COLLECT_ROLES, FINANCE_ROLES, PilotagePrincipal, get_p
 from app.core.request_context import get_request_id
 from app.sources.catalog import PILOTAGE_SOURCES, enabled_modules, get_source
 from app.planning import list_objectives, objective_history, set_objective
-from app.alerts import alert_history, list_alerts, reconcile_source_alerts, update_alert
-from app.reports import build_report, report_csv
+from app.alerts import alert_history, list_alerts, reconcile_business_alerts, reconcile_source_alerts, update_alert
+from app.reports import build_report, report_csv, report_pdf
 
 router = APIRouter(prefix="/pilotage", tags=["pilotage"])
 
@@ -126,7 +126,8 @@ def read_alerts(
     if module:
         _known_module(module)
         require_module_access(principal, module)
-    items = reconcile_source_alerts()
+    reconcile_source_alerts()
+    items = reconcile_business_alerts(date_type.fromisoformat(business_today()))
     items = [item for item in items if principal.can_view(item["module"] or "global")]
     if status:
         items = [item for item in items if item["status"] == status]
@@ -171,7 +172,7 @@ def read_alert_history(alert_id: int, principal: PilotagePrincipal = Depends(get
 def report(
     period: str,
     anchor: date_type = Query(default_factory=lambda: date_type.fromisoformat(business_today())),
-    format: str = Query(default="json", pattern="^(json|csv)$"),
+    format: str = Query(default="json", pattern="^(json|csv|pdf)$"),
     principal: PilotagePrincipal = Depends(get_principal),
 ):
     if period not in {"day", "week", "month"}:
@@ -184,6 +185,9 @@ def report(
     if format == "csv":
         filename = f"pilotage-{period}-{anchor.isoformat()}.csv"
         return Response(content=report_csv(payload), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+    if format == "pdf":
+        filename = f"pilotage-{period}-{anchor.isoformat()}.pdf"
+        return Response(content=report_pdf(payload), media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
     return payload
 
 

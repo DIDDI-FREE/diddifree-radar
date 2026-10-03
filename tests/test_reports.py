@@ -47,6 +47,15 @@ class ReportTests(unittest.TestCase):
         response = self.client.get("/api/pilotage/reports/year?anchor=2026-09-23", headers=DG_HEADERS)
         self.assertEqual(response.status_code, 404)
 
+    def test_pdf_report_is_a_valid_download_and_is_audited(self):
+        response = self.client.get("/api/pilotage/reports/week?anchor=2026-09-23&format=pdf", headers=DG_HEADERS)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["content-type"], "application/pdf")
+        self.assertTrue(response.content.startswith(b"%PDF-"))
+        self.assertGreater(len(response.content), 1500)
+        audit = self.client.get("/api/pilotage/audit/financial-access", headers=DG_HEADERS).json()["items"]
+        self.assertEqual(audit[0]["resource"], "report-pdf")
+
 
 if __name__ == "__main__":
     unittest.main()

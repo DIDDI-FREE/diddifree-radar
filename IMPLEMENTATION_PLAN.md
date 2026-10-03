@@ -378,12 +378,12 @@ Le détail personnel d'un chauffeur, coursier ou restaurant appartient à DiddiF
 - résolution automatique d'une alerte quand la source redevient saine ;
 - rapports JSON quotidiens, hebdomadaires et mensuels ;
 - export CSV avec couverture, fraîcheur et audit des consultations financières ;
+- seuils configurables et détection des baisses, annulations, fonds en retard et écarts financiers ;
+- export PDF paginé et vérifié visuellement ;
 - onglet `Décisions` affichant objectifs et alertes.
 
 ### Reste du sprint
 
-- seuils configurables et détection des baisses, annulations et écarts financiers ;
-- export PDF ;
 - recette staging des objectifs, alertes et rapports.
 
 ### Objectifs

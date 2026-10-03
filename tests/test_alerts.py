@@ -1,9 +1,12 @@
 import asyncio
 import unittest
+from datetime import date, timedelta
 
 from fastapi.testclient import TestClient
 
 from app.collector.collector import collect_daily_summary
+from app.collector.collector import business_today
+from app.collector import store
 from app.core.db import execute, init_db
 from app.main import app
 from tests.test_api import DG_HEADERS, MODULE_MANAGER_HEADERS, OPERATIONS_HEADERS
@@ -48,6 +51,26 @@ class AlertTests(unittest.TestCase):
         items = self.client.get("/api/pilotage/alerts", headers=MODULE_MANAGER_HEADERS).json()["items"]
         self.assertTrue(items)
         self.assertEqual({item["module"] for item in items}, {"diddigo"})
+
+    def test_activity_drop_rule_uses_previous_available_days(self):
+        today = date.fromisoformat(business_today())
+        for offset in range(7, 0, -1):
+            day = (today - timedelta(days=offset)).isoformat()
+            store.save_summary("diddigo", "daily", day, {"metrics": [{"name": "rides_requested", "value": 100, "unit": "count"}]}, day + "T23:59:00Z", True)
+        day = today.isoformat()
+        store.save_summary("diddigo", "daily", day, {"metrics": [{"name": "rides_requested", "value": 50, "unit": "count"}]}, day + "T12:00:00Z", False)
+        items = self.client.get("/api/pilotage/alerts?module=diddigo", headers=DG_HEADERS).json()["items"]
+        self.assertIn("activity_drop", {item["alert_type"] for item in items})
+
+    def test_cancellation_rule_reads_final_status_breakdown(self):
+        day = business_today()
+        store.save_summary(
+            "diddigo", "breakdown:final_status:rides_requested", day,
+            {"total": 100, "items": [{"key": "cancelled", "label": "Annulées", "value": 25}, {"key": "completed", "label": "Terminées", "value": 75}]},
+            day + "T12:00:00Z", False,
+        )
+        items = self.client.get("/api/pilotage/alerts?module=diddigo", headers=DG_HEADERS).json()["items"]
+        self.assertIn("cancellation_rate", {item["alert_type"] for item in items})
 
 
 if __name__ == "__main__":
