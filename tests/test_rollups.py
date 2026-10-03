@@ -11,7 +11,15 @@ from app.main import app
 from tests.test_api import DG_HEADERS
 
 
-def seed_day(module: str, day: str, rides: int, fare: int, *, is_final: bool = True) -> None:
+def seed_day(
+    module: str,
+    day: str,
+    rides: int,
+    fare: int | str,
+    *,
+    is_final: bool = True,
+    users_total: int | None = None,
+) -> None:
     payload = {
         "contract_version": "pilotage.v1",
         "module": module,
@@ -19,12 +27,16 @@ def seed_day(module: str, day: str, rides: int, fare: int, *, is_final: bool = T
         "timezone": "Africa/Abidjan",
         "is_final": is_final,
         "metrics": [
-            {"name": "rides_completed", "label": "Courses terminées", "value": rides, "unit": "count"},
-            {"name": "fare_total_xof", "label": "CA", "value": fare, "unit": "XOF"},
-            {"name": "completion_rate", "label": "Taux", "value": 85.0, "unit": "percent"},
+            {"name": "rides_completed", "label": "Courses terminées", "value": rides, "unit": "count", "aggregation": "sum"},
+            {"name": "fare_total_xof", "label": "CA", "value": fare, "unit": "XOF", "aggregation": "sum"},
+            {"name": "completion_rate", "label": "Taux", "value": 85.0, "unit": "percent", "aggregation": "ratio"},
         ],
         "calculated_at": utc_now_iso(),
     }
+    if users_total is not None:
+        payload["metrics"].append(
+            {"name": "users_total", "label": "Utilisateurs", "value": users_total, "unit": "count", "aggregation": "last"}
+        )
     execute(
         "INSERT INTO pilotage_summaries (module, kind, summary_date, payload, calculated_at, is_final, collected_at) VALUES (?, 'daily', ?, ?, ?, ?, ?) "
         "ON CONFLICT (module, kind, summary_date) DO UPDATE SET payload = excluded.payload, is_final = excluded.is_final",
@@ -63,6 +75,23 @@ class RollupTests(unittest.TestCase):
         self.assertEqual(metrics["rides_completed"]["value"], 70)
         self.assertEqual(metrics["fare_total_xof"]["value"], 7000)
         self.assertNotIn("completion_rate", metrics, "percent metrics must not be summed")
+
+    def test_snapshot_metric_keeps_last_value(self):
+        start = week_start(self.today)
+        seed_day("identity", start.isoformat(), 0, 0, users_total=100)
+        seed_day("identity", (start + timedelta(days=1)).isoformat(), 0, 0, users_total=105)
+        buckets = aggregate_periods("identity", period="week", count=1, today=self.today)
+        metrics = {m["name"]: m for m in buckets[0]["metrics"]}
+        self.assertEqual(metrics["users_total"]["value"], 105)
+        self.assertEqual(metrics["users_total"]["aggregation"], "last")
+
+    def test_decimal_string_xof_is_summed_exactly(self):
+        start = week_start(self.today)
+        seed_day("diddisend", start.isoformat(), 0, "10.10")
+        seed_day("diddisend", (start + timedelta(days=1)).isoformat(), 0, "20.20")
+        buckets = aggregate_periods("diddisend", period="week", count=1, today=self.today)
+        metrics = {m["name"]: m for m in buckets[0]["metrics"]}
+        self.assertEqual(metrics["fare_total_xof"]["value"], "30.30")
 
     def test_current_week_is_partial(self):
         self._seed_days(15)

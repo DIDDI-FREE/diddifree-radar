@@ -1,7 +1,9 @@
 """Week/month rollups computed locally from stored daily summaries.
 
-Only additive metrics (unit ``count`` or ``XOF``) are summed; rates and
-averages cannot be aggregated by addition and are deliberately excluded.
+Each metric declares how it behaves across days. Additive flows are summed,
+snapshots keep the last value, and extrema keep their minimum or maximum.
+Ratios and weighted averages remain excluded until their components are
+available; adding already-computed rates would be mathematically wrong.
 The source modules are never called here — rollups read the local store.
 """
 
@@ -9,11 +11,89 @@ from __future__ import annotations
 
 import calendar
 from datetime import date, timedelta
+from decimal import Decimal, InvalidOperation
 
 from app.collector import store
 from app.collector.collector import DAILY_KIND
 
-ADDITIVE_UNITS = {"count", "xof"}
+SUPPORTED_AGGREGATIONS = {"sum", "last", "min", "max"}
+
+
+def _decimal_value(value) -> Decimal | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float, str)):
+        try:
+            return Decimal(str(value))
+        except InvalidOperation:
+            return None
+    return None
+
+
+def _serialized_value(value: Decimal, *, string_value: bool, integral_value: bool):
+    if string_value:
+        return format(value, "f")
+    if integral_value and value == value.to_integral_value():
+        return int(value)
+    return float(value)
+
+
+def _accumulate(totals: dict[str, dict], metric: dict) -> None:
+    aggregation = metric.get("aggregation", "sum")
+    if aggregation not in SUPPORTED_AGGREGATIONS:
+        return
+    value = _decimal_value(metric.get("value"))
+    if value is None:
+        return
+
+    name = metric.get("name")
+    if not name:
+        return
+    entry = totals.get(name)
+    if entry is None:
+        totals[name] = {
+            "name": name,
+            "label": metric.get("label") or name,
+            "unit": metric.get("unit"),
+            "aggregation": aggregation,
+            "_value": value,
+            "_string_value": isinstance(metric.get("value"), str),
+            "_integral_value": isinstance(metric.get("value"), int) and not isinstance(metric.get("value"), bool),
+        }
+        return
+    if entry["aggregation"] != aggregation:
+        return
+    entry["label"] = metric.get("label") or entry["label"]
+    entry["_string_value"] = entry["_string_value"] or isinstance(metric.get("value"), str)
+    entry["_integral_value"] = entry["_integral_value"] and isinstance(metric.get("value"), int)
+
+    if aggregation == "sum":
+        entry["_value"] += value
+    elif aggregation == "last":
+        entry["_value"] = value
+    elif aggregation == "min":
+        entry["_value"] = min(entry["_value"], value)
+    elif aggregation == "max":
+        entry["_value"] = max(entry["_value"], value)
+
+
+def _public_metrics(totals: dict[str, dict]) -> list[dict]:
+    metrics = []
+    for entry in totals.values():
+        metrics.append(
+            {
+                "name": entry["name"],
+                "label": entry["label"],
+                "unit": entry["unit"],
+                "aggregation": entry["aggregation"],
+                "value": _serialized_value(
+                    entry["_value"],
+                    string_value=entry["_string_value"],
+                    integral_value=entry["_integral_value"],
+                ),
+            }
+        )
+    return metrics
 
 
 def week_start(day: date) -> date:
@@ -58,15 +138,7 @@ def aggregate_periods(module: str, *, period: str, count: int, today: date) -> l
             if record:
                 days_with_data += 1
                 for metric in record["payload"].get("metrics", []):
-                    unit = str(metric.get("unit", "")).lower()
-                    value = metric.get("value")
-                    if unit in ADDITIVE_UNITS and isinstance(value, (int, float)):
-                        entry = totals.setdefault(
-                            metric["name"],
-                            {"name": metric["name"], "label": metric.get("label") or metric["name"], "unit": metric.get("unit"), "value": 0},
-                        )
-                        entry["value"] += value
-                        entry["label"] = metric.get("label") or entry["label"]
+                    _accumulate(totals, metric)
             day += timedelta(days=1)
         expected_days = (end - start).days + 1
         buckets.append(
@@ -77,7 +149,7 @@ def aggregate_periods(module: str, *, period: str, count: int, today: date) -> l
                 "days_with_data": days_with_data,
                 "expected_days": expected_days,
                 "is_complete": end < today and days_with_data == expected_days,
-                "metrics": list(totals.values()),
+                "metrics": _public_metrics(totals),
             }
         )
     return buckets
