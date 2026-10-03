@@ -26,7 +26,7 @@ Pilotage reste en lecture seule. Les opérations sensibles sont réalisées dans
 | --- | --- | --- |
 | Sprint 0 | terminé | Contrats, routes, scopes et KPI identifiés |
 | Sprint 1 | terminé | DiddiFreeID, DiddiGo, DiddiSend et DiddiPay collectés en staging |
-| Sprint 2 | prochain | Agrégations et historique fiables |
+| Sprint 2 | en cours | Agrégations fiables livrées ; backfill staging de cinq jours réussi |
 | Sprints 3 à 7 | à faire | Produit, finance, granularité, alertes et déploiement |
 
 ### Fondation déjà disponible
@@ -100,6 +100,18 @@ Les quatre sources répondent et leur dernière valeur valide est disponible dan
 ## Sprint 2 — agrégations et historique fiables
 
 **But :** garantir que les vues semaine et mois donnent des chiffres mathématiquement corrects.
+
+### Avancement au 3 octobre 2026
+
+- `sum`, `last`, `min` et `max` sont implémentés côté API et interface ;
+- les ratios et moyennes pondérées sont volontairement exclus tant que leurs composants ne sont pas fournis ;
+- les montants XOF décimaux sont additionnés avec `Decimal` côté backend ;
+- les chaînes décimales sont affichées correctement dans l'interface ;
+- le backfill du 28 septembre au 2 octobre a réussi pour les quatre sources ;
+- les quatre routes d'historique et d'agrégats ont répondu `200` ;
+- 47 tests passent.
+
+Reste dans ce sprint : formaliser les composants des ratios et moyennes pondérées, puis améliorer la présentation des périodes corrigées.
 
 ### Travail backend
 
