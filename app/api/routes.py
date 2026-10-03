@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from decimal import Decimal
 
-from datetime import date as date_type, timedelta
+from datetime import date as date_type, datetime, timedelta
 
 from app.collector import store
 from app.collector.collector import DAILY_KIND, FINANCE_KIND, backfill_default_breakdowns, backfill_finance_module, backfill_module, breakdown_kind, business_timezone, business_today, collect_breakdown, collect_daily_summary, collect_default_breakdowns, collect_finance_summary
@@ -16,6 +16,7 @@ from app.core.auth import COLLECT_ROLES, FINANCE_ROLES, PilotagePrincipal, get_p
 from app.core.request_context import get_request_id
 from app.sources.catalog import PILOTAGE_SOURCES, enabled_modules, get_source
 from app.planning import list_objectives, objective_history, set_objective
+from app.alerts import alert_history, list_alerts, reconcile_source_alerts, update_alert
 
 router = APIRouter(prefix="/pilotage", tags=["pilotage"])
 
@@ -27,6 +28,12 @@ class ObjectiveInput(BaseModel):
     period_start: date_type
     target_value: Decimal = Field(gt=0)
     unit: str = Field(min_length=1, max_length=20)
+
+
+class AlertUpdate(BaseModel):
+    status: str | None = Field(default=None, pattern="^(open|acknowledged|resolved)$")
+    owner_id: str | None = Field(default=None, max_length=120)
+    due_at: datetime | None = None
 
 
 def _known_module(module: str) -> str:
@@ -107,6 +114,56 @@ def read_objective_history(
         require_role(principal, FINANCE_ROLES)
         _audit_financial_access(principal, "objective-history", module)
     return {"items": items}
+
+
+@router.get("/alerts")
+def read_alerts(
+    status: str | None = Query(default=None, pattern="^(open|acknowledged|resolved)$"),
+    module: str | None = None,
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    if module:
+        _known_module(module)
+        require_module_access(principal, module)
+    items = reconcile_source_alerts()
+    items = [item for item in items if principal.can_view(item["module"] or "global")]
+    if status:
+        items = [item for item in items if item["status"] == status]
+    if module:
+        items = [item for item in items if item["module"] == module]
+    return {"items": items}
+
+
+@router.patch("/alerts/{alert_id}")
+def change_alert(
+    alert_id: int,
+    payload: AlertUpdate,
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    require_role(principal, {"dg_global", "operations_manager"})
+    current = next((item for item in list_alerts() if item["id"] == alert_id), None)
+    if not current:
+        raise HTTPException(status_code=404, detail={"error": {"code": "alert_not_found", "message": "Alert does not exist"}})
+    if current["module"]:
+        require_module_access(principal, current["module"])
+    updated = update_alert(
+        alert_id,
+        actor_id=principal.user_id,
+        status=payload.status,
+        owner_id=payload.owner_id,
+        due_at=payload.due_at.isoformat() if payload.due_at else None,
+    )
+    return {"alert": updated}
+
+
+@router.get("/alerts/{alert_id}/history")
+def read_alert_history(alert_id: int, principal: PilotagePrincipal = Depends(get_principal)) -> dict:
+    current = next((item for item in list_alerts() if item["id"] == alert_id), None)
+    if not current:
+        raise HTTPException(status_code=404, detail={"error": {"code": "alert_not_found", "message": "Alert does not exist"}})
+    if current["module"]:
+        require_module_access(principal, current["module"])
+    return {"items": alert_history(alert_id)}
 
 
 def _module_block(module: str, principal: PilotagePrincipal) -> dict:

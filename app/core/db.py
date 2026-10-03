@@ -13,6 +13,7 @@ from psycopg.rows import dict_row
 SCHEMA_VERSION = "001_initial"
 SUMMARY_REVISION_MIGRATION = "002_summary_revisions"
 PLANNING_MIGRATION = "003_planning"
+ALERTS_MIGRATION = "004_alerts"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS pilotage_users (
@@ -68,12 +69,37 @@ CREATE TABLE IF NOT EXISTS pilotage_objectives (
   changed_at TEXT NOT NULL,
   UNIQUE (module, metric, period, period_start, revision)
 );
+CREATE TABLE IF NOT EXISTS pilotage_alerts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  fingerprint TEXT NOT NULL UNIQUE,
+  alert_type TEXT NOT NULL,
+  module TEXT,
+  severity TEXT NOT NULL CHECK (severity IN ('info', 'warning', 'critical')),
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  owner_id TEXT,
+  status TEXT NOT NULL CHECK (status IN ('open', 'acknowledged', 'resolved')),
+  due_at TEXT,
+  opened_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  resolved_at TEXT
+);
+CREATE TABLE IF NOT EXISTS pilotage_alert_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  alert_id INTEGER NOT NULL,
+  action TEXT NOT NULL,
+  actor_id TEXT NOT NULL,
+  details TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS schema_migrations (
   id TEXT PRIMARY KEY,
   applied_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_pilotage_summaries_module_kind ON pilotage_summaries(module, kind, summary_date);
 CREATE INDEX IF NOT EXISTS idx_pilotage_objectives_lookup ON pilotage_objectives(module, metric, period, period_start, revision);
+CREATE INDEX IF NOT EXISTS idx_pilotage_alerts_status ON pilotage_alerts(status, severity, updated_at);
+CREATE INDEX IF NOT EXISTS idx_pilotage_alert_events_alert ON pilotage_alert_events(alert_id, created_at);
 """
 POSTGRES_SCHEMA = SCHEMA.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "BIGSERIAL PRIMARY KEY")
 
@@ -166,4 +192,8 @@ def init_db() -> None:
         connection.execute(
             "INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?) ON CONFLICT (id) DO NOTHING",
             (PLANNING_MIGRATION, utc_now_iso()),
+        )
+        connection.execute(
+            "INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?) ON CONFLICT (id) DO NOTHING",
+            (ALERTS_MIGRATION, utc_now_iso()),
         )
