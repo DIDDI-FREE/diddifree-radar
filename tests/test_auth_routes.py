@@ -45,7 +45,7 @@ class AuthRouteTests(unittest.TestCase):
         token = fake_jwt({"sub": "user-dg-1", "status": "active", "role": "user"})
         with patch.dict(os.environ, {"PILOTAGE_BOOTSTRAP_DG_EMAILS": "dg@diddifree.com"}), patch(
             "app.api.auth_routes._post_identity", new=AsyncMock(return_value={"access_token": token, "expires_in": 900})
-        ):
+        ), patch("app.api.auth_routes._get_identity_profile", new=AsyncMock(return_value={"email": "dg@diddifree.com"})):
             response = self.client.post(
                 "/api/pilotage/auth/otp/verify", json={"email": "DG@diddifree.com", "code": "123456"}
             )
@@ -57,7 +57,9 @@ class AuthRouteTests(unittest.TestCase):
 
     def test_otp_verify_rejects_unprovisioned_user(self):
         token = fake_jwt({"sub": "user-unknown", "status": "active"})
-        with patch("app.api.auth_routes._post_identity", new=AsyncMock(return_value={"access_token": token})):
+        with patch("app.api.auth_routes._post_identity", new=AsyncMock(return_value={"access_token": token})), patch(
+            "app.api.auth_routes._get_identity_profile", new=AsyncMock(return_value={"email": "someone@diddifree.com"})
+        ):
             response = self.client.post(
                 "/api/pilotage/auth/otp/verify", json={"email": "someone@diddifree.com", "code": "123456"}
             )
@@ -72,6 +74,15 @@ class AuthRouteTests(unittest.TestCase):
             )
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json()["detail"]["error"]["code"], "identity_inactive")
+
+    def test_phone_otp_can_bootstrap_from_users_me_profile(self):
+        token = fake_jwt({"sub": "user-phone-dg", "status": "active", "role": "user"})
+        with patch.dict(os.environ, {"PILOTAGE_BOOTSTRAP_DG_EMAILS": "phone-dg@diddifree.com"}), patch(
+            "app.api.auth_routes._post_identity", new=AsyncMock(return_value={"access_token": token})
+        ), patch("app.api.auth_routes._get_identity_profile", new=AsyncMock(return_value={"email": "phone-dg@diddifree.com"})):
+            response = self.client.post("/api/pilotage/auth/otp/verify", json={"phone": "+22500000000", "code": "123456"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["session"]["role"], "dg_global")
 
 
 if __name__ == "__main__":

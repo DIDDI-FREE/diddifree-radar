@@ -64,6 +64,8 @@ overridable per module so a contract migration does not require browser changes.
 ## Auth
 
 - Humans: DiddiFreeID OIDC bearer tokens (same JWKS as the Backoffice),
+  with `sub` as the stable identifier and `iss=diddifree-id`; no human
+  audience is required. The current profile is read from `/users/me`.
   then Pilotage-local roles in `pilotage_users`:
   `dg_global`, `finance_admin`, `operations_manager`, `module_manager`
   (restricted via the `modules` CSV column), `audit_read`.
@@ -72,6 +74,9 @@ overridable per module so a contract migration does not require browser changes.
 - Outbound: short-lived S2S tokens via the shared client
   (`PILOTAGE_SERVICE_CLIENT_ID`, default audience = module key). Static
   per-module tokens are migration/emergency fallback only.
+- Inbound services: `aud=pilotage`, `pilotage:read`, `role=service`,
+  `token_type=service`, matching `client_id`/`X-Client-ID`; module access is
+  assigned locally through `PILOTAGE_TRUSTED_SERVICE_MODULES_JSON`.
 - `PILOTAGE_ALLOW_INSECURE_HEADERS=1` enables the `X-User-Id`/`X-Role`
   header path for local development and tests only.
 

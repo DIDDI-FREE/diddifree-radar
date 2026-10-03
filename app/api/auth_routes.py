@@ -34,6 +34,17 @@ async def _post_identity(path: str, body: dict) -> dict:
         return response.json()
 
 
+async def _get_identity_profile(access_token: str) -> dict:
+    try:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            response = await client.get(_identity_url("/users/me"), headers={"Authorization": f"Bearer {access_token}"})
+            response.raise_for_status()
+            payload = response.json()
+            return payload if isinstance(payload, dict) else {}
+    except (httpx.HTTPError, ValueError):
+        return {}
+
+
 def _jwt_claims_unverified(token: str) -> dict:
     try:
         parts = token.split(".")
@@ -106,9 +117,9 @@ async def verify_otp(payload: dict) -> dict:
     if not user_id or claims.get("status") != "active":
         raise HTTPException(status_code=403, detail=_error_detail("identity_inactive", "DiddiFreeID identity is not active"))
     try:
-        # The OTP code was delivered to this email, so it is proven and may
-        # drive first-login bootstrap provisioning.
-        principal = _local_principal(str(user_id), email)
+        profile = await _get_identity_profile(access_token)
+        profile_email = str(profile.get("email") or email).strip()
+        principal = _local_principal(str(user_id), profile_email)
     except JWTError:
         raise HTTPException(status_code=403, detail=_error_detail("not_provisioned", "This user is not provisioned in Pilotage")) from None
     return {

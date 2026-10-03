@@ -5,6 +5,9 @@
 1. Utiliser un commit identifié de la branche `main`.
 2. Copier `.env.example` vers un fichier d'environnement situé hors de Git.
 3. Renseigner PostgreSQL, OIDC, CORS et les secrets S2S depuis le coffre.
+   Utiliser `PILOTAGE_OIDC_ISSUER=diddifree-id`; les jetons humains n'ont pas
+   d'audience. Définir le périmètre des consommateurs S2S dans
+   `PILOTAGE_TRUSTED_SERVICE_MODULES_JSON`.
 4. Valider la composition :
 
    ```bash
