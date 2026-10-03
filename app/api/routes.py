@@ -7,8 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from datetime import date as date_type, timedelta
 
 from app.collector import store
-from app.collector.collector import DAILY_KIND, FINANCE_KIND, backfill_finance_module, backfill_module, breakdown_kind, business_timezone, business_today, collect_breakdown, collect_daily_summary, collect_finance_summary
+from app.collector.collector import DAILY_KIND, FINANCE_KIND, backfill_finance_module, backfill_module, breakdown_kind, business_timezone, business_today, collect_breakdown, collect_daily_summary, collect_default_breakdowns, collect_finance_summary
 from app.collector.rollups import aggregate_periods
+from app.collector.breakdown_rollups import aggregate_breakdowns
 from app.core.auth import COLLECT_ROLES, FINANCE_ROLES, PilotagePrincipal, get_principal, require_module_access, require_role
 from app.core.request_context import get_request_id
 from app.sources.catalog import PILOTAGE_SOURCES, enabled_modules, get_source
@@ -301,6 +302,33 @@ async def trigger_breakdown_collection(
     require_role(principal, COLLECT_ROLES)
     require_module_access(principal, module)
     return {"result": await collect_breakdown(module, date=date, dimension=dimension, metric=metric), "request_id": get_request_id()}
+
+
+@router.get("/modules/{module}/breakdown-aggregates")
+def module_breakdown_aggregates(
+    module: str,
+    dimension: str = Query(pattern="^[a-z][a-z0-9_]{0,39}$"),
+    metric: str = Query(pattern="^[a-z][a-z0-9_]{0,79}$"),
+    period: str = Query(default="week", pattern="^(week|month)$"),
+    count: int = Query(default=8, ge=1, le=12),
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    _known_module(module)
+    require_module_access(principal, module)
+    today = date_type.fromisoformat(business_today())
+    return {"module": module, "dimension": dimension, "metric": metric, "period": period, "buckets": aggregate_breakdowns(module, dimension, metric, period=period, count=count, today=today)}
+
+
+@router.post("/sources/{module}/collect-default-breakdowns")
+async def trigger_default_breakdowns(
+    module: str,
+    date: str,
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    _known_module(module)
+    require_role(principal, COLLECT_ROLES)
+    require_module_access(principal, module)
+    return {"result": await collect_default_breakdowns(module, date=date), "request_id": get_request_id()}
 
 
 @router.get("/sources")

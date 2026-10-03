@@ -310,6 +310,10 @@ Volume net
 - collecteur générique de ventilations avec validation du contrat ;
 - route de lecture `GET /api/pilotage/modules/{module}/breakdown` ;
 - contrôle des droits par module et validation stricte des dimensions demandées.
+- matrices DiddiGo et DiddiSend alignées sur leurs contrats mis à jour ;
+- agrégation locale des ventilations par semaine et mois ;
+- collecte groupée de toutes les combinaisons officiellement supportées ;
+- recette staging tentée : DiddiGo `404` et DiddiSend `403`, versions locales non encore déployées complètement.
 
 ### Dimensions à exposer par les modules
 

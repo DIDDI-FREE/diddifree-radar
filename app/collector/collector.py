@@ -26,6 +26,25 @@ def breakdown_kind(dimension: str, metric: str) -> str:
     return f"breakdown:{dimension}:{metric}"
 
 
+BREAKDOWN_MATRIX = {
+    "diddigo": {
+        "hour": ("rides_requested", "rides_completed", "completed_fare_total_xof"),
+        "payment_method": ("rides_requested", "rides_completed", "completed_fare_total_xof"),
+        "service_type": ("rides_requested", "rides_completed", "completed_fare_total_xof"),
+        "final_status": ("rides_requested",),
+    },
+    "diddisend": {
+        "hour": ("deliveries_requested", "deliveries_completed", "delivery_value"),
+        "payment_method": ("deliveries_requested", "deliveries_completed", "delivery_value"),
+        "service_type": ("deliveries_requested", "deliveries_completed", "delivery_value"),
+        "final_status": ("deliveries_requested",),
+        "pickup_city": ("deliveries_requested", "deliveries_completed", "delivery_value"),
+        "dropoff_city": ("deliveries_requested", "deliveries_completed", "delivery_value"),
+        "participant_category": ("deliveries_requested", "deliveries_completed", "delivery_value"),
+    },
+}
+
+
 def business_timezone() -> ZoneInfo:
     return ZoneInfo(os.getenv("PILOTAGE_BUSINESS_TIMEZONE", "Africa/Abidjan"))
 
@@ -148,6 +167,13 @@ async def collect_breakdown(module: str, *, date: str, dimension: str, metric: s
     store.save_summary(module, kind, payload.date.isoformat(), payload.model_dump(mode="json"), payload.calculated_at.isoformat(), payload.is_final)
     store.record_success(module, kind)
     return {"module": module, "date": payload.date.isoformat(), "status": "collected", "dimension": dimension, "metric": metric}
+
+
+async def collect_default_breakdowns(module: str, *, date: str, client: PilotageSourceClient | None = None) -> dict:
+    client = client or PilotageSourceClient(module)
+    pairs = [(dimension, metric) for dimension, metrics in BREAKDOWN_MATRIX.get(module, {}).items() for metric in metrics]
+    results = [await collect_breakdown(module, date=date, dimension=dimension, metric=metric, client=client) for dimension, metric in pairs]
+    return {"module": module, "date": date, "collected": sum(result["status"] == "collected" for result in results), "failed": sum(result["status"] != "collected" for result in results), "results": results}
 
 
 async def collect_all(*, date: str | None = None) -> list[dict]:

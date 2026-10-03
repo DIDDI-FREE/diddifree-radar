@@ -40,7 +40,10 @@ class PilotageSourceClient(SourceGateway):
     async def breakdown(self, date: str, dimension: str, metric: str) -> dict:
         if not _DATE_PATTERN.fullmatch(date):
             raise ValueError("date must be YYYY-MM-DD")
+        default_scope = "diddigo:ride-summary:read" if self.source.key == "diddigo" else self.source.scope()
+        scope = os.getenv(f"PILOTAGE_{self.source.key.upper()}_BREAKDOWN_SCOPE", default_scope)
         return await self.get(
             f"{self.source.summary_base()}/breakdown",
             params={"date": date, "dimension": dimension, "metric": metric},
+            scope=scope,
         )

@@ -32,6 +32,15 @@ class BreakdownCollectionTests(unittest.TestCase):
         response = self.client.get("/api/pilotage/modules/diddisend/breakdown?date=2026-10-03&dimension=payment_method&metric=rides_completed", headers=MODULE_MANAGER_HEADERS)
         self.assertEqual(response.status_code, 403)
 
+    def test_breakdown_aggregates_sum_daily_items(self):
+        asyncio.run(collect_breakdown("diddigo", date="2026-10-02", dimension="payment_method", metric="rides_completed", client=FakeBreakdownClient()))
+        asyncio.run(collect_breakdown("diddigo", date="2026-10-03", dimension="payment_method", metric="rides_completed", client=FakeBreakdownClient()))
+        response = self.client.get("/api/pilotage/modules/diddigo/breakdown-aggregates?dimension=payment_method&metric=rides_completed&period=week&count=1", headers=DG_HEADERS)
+        self.assertEqual(response.status_code, 200)
+        bucket = response.json()["buckets"][0]
+        self.assertEqual(bucket["total"], 20)
+        self.assertEqual({item["key"]: item["value"] for item in bucket["items"]}, {"cash": 12, "wave": 8})
+
 
 if __name__ == "__main__":
     unittest.main()
