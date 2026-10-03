@@ -49,6 +49,16 @@ METRIC_METADATA = {
     "partner_share": ("Part partenaires", "Revenus attribués aux partenaires de flotte."),
     "collection_anomalies": ("Anomalies d'encaissement", "Nombre d'anomalies de collecte détectées."),
     "overdue_cash_to_remit": ("Reversements en retard", "Montant dont l'échéance de reversement est dépassée."),
+    "orders_placed": ("Commandes passées", "Commandes DiddiFood passées pendant la journée."),
+    "orders_accepted": ("Commandes acceptées", "Commandes acceptées par les restaurants."),
+    "orders_ready": ("Commandes prêtes", "Commandes marquées prêtes."),
+    "orders_delivered": ("Commandes livrées", "Commandes livrées pendant la journée."),
+    "orders_cancelled": ("Commandes annulées", "Commandes annulées pendant la journée."),
+    "active_restaurants": ("Restaurants actifs", "Nombre courant de restaurants actifs."),
+    "food_ordered_xof": ("Valeur des commandes", "Valeur des commandes passées."),
+    "food_delivered_xof": ("Valeur livrée", "Valeur des commandes livrées."),
+    "food_commission_recognized_xof": ("Commission DiddiFood", "Commission reconnue sur les commandes livrées."),
+    "restaurant_net_recognized_xof": ("Revenu net restaurants", "Montant attribué aux restaurants."),
 }
 
 DERIVED_METRICS = {

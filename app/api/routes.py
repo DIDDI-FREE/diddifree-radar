@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from datetime import date as date_type, timedelta
 
 from app.collector import store
-from app.collector.collector import DAILY_KIND, FINANCE_KIND, backfill_finance_module, backfill_module, business_timezone, business_today, collect_daily_summary, collect_finance_summary
+from app.collector.collector import DAILY_KIND, FINANCE_KIND, backfill_finance_module, backfill_module, breakdown_kind, business_timezone, business_today, collect_breakdown, collect_daily_summary, collect_finance_summary
 from app.collector.rollups import aggregate_periods
 from app.core.auth import COLLECT_ROLES, FINANCE_ROLES, PilotagePrincipal, get_principal, require_module_access, require_role
 from app.core.request_context import get_request_id
@@ -271,6 +271,36 @@ async def trigger_finance_backfill(
     require_role(principal, COLLECT_ROLES & FINANCE_ROLES)
     require_module_access(principal, module)
     return {"result": await backfill_finance_module(module, days=days), "request_id": get_request_id()}
+
+
+@router.get("/modules/{module}/breakdown")
+def module_breakdown(
+    module: str,
+    date: str,
+    dimension: str = Query(pattern="^[a-z][a-z0-9_]{0,39}$"),
+    metric: str = Query(pattern="^[a-z][a-z0-9_]{0,79}$"),
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    _known_module(module)
+    require_module_access(principal, module)
+    record = store.latest_summary(module, breakdown_kind(dimension, metric), summary_date=date)
+    if not record:
+        raise HTTPException(status_code=404, detail={"error": {"code": "breakdown_unavailable", "message": "No collected breakdown is available"}})
+    return {"breakdown": record["payload"], "revision": record["revision"], "collected_at": record["collected_at"]}
+
+
+@router.post("/sources/{module}/collect-breakdown")
+async def trigger_breakdown_collection(
+    module: str,
+    date: str,
+    dimension: str = Query(pattern="^[a-z][a-z0-9_]{0,39}$"),
+    metric: str = Query(pattern="^[a-z][a-z0-9_]{0,79}$"),
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    _known_module(module)
+    require_role(principal, COLLECT_ROLES)
+    require_module_access(principal, module)
+    return {"result": await collect_breakdown(module, date=date, dimension=dimension, metric=metric), "request_id": get_request_id()}
 
 
 @router.get("/sources")

@@ -36,3 +36,11 @@ class PilotageSourceClient(SourceGateway):
 
     async def health_summary(self) -> dict:
         return await self.get(f"{self.source.summary_base()}/health-summary")
+
+    async def breakdown(self, date: str, dimension: str, metric: str) -> dict:
+        if not _DATE_PATTERN.fullmatch(date):
+            raise ValueError("date must be YYYY-MM-DD")
+        return await self.get(
+            f"{self.source.summary_base()}/breakdown",
+            params={"date": date, "dimension": dimension, "metric": metric},
+        )

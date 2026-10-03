@@ -295,7 +295,21 @@ Volume net
 
 ## Sprint 5 — granularité opérationnelle
 
+**État : en cours**
+
 **But :** permettre de comprendre où, quand et pourquoi les performances évoluent.
+
+### Premier lot livré
+
+- inventaire des dimensions réellement présentes dans DiddiGo, DiddiSend et DiddiFood ;
+- contrat `pilotage.breakdown.v1` avec contrôle que les éléments correspondent au total ;
+- interdiction des opérations brutes et données personnelles dans les ventilations ;
+- chemins DiddiFood corrigés vers `/food/v1/internal/pilotage` ;
+- intégration DiddiFood préparée mais non activée après un `403` staging avec le client partagé ;
+- absence de dépôt DiddiMap local enregistrée comme dépendance externe.
+- collecteur générique de ventilations avec validation du contrat ;
+- route de lecture `GET /api/pilotage/modules/{module}/breakdown` ;
+- contrôle des droits par module et validation stricte des dimensions demandées.
 
 ### Dimensions à exposer par les modules
 

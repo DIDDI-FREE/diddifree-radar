@@ -30,6 +30,10 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertEqual(identity.audience(), "diddifree-id")
         self.assertEqual(identity.scope(), "identity:reporting:read")
 
+        diddifood = get_source("diddifood")
+        self.assertEqual(diddifood.daily_summary_path(), "/food/v1/internal/pilotage/daily-summary")
+        self.assertEqual(diddifood.scope(), "food:pilotage:read")
+
     def test_daily_path_can_be_overridden(self):
         with patch.dict(os.environ, {"PILOTAGE_DIDDIGO_DAILY_SUMMARY_PATH": "/custom/summary"}):
             self.assertEqual(get_source("diddigo").daily_summary_path(), "/custom/summary")

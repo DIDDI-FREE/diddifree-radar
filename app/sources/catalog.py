@@ -73,7 +73,7 @@ PILOTAGE_SOURCES: dict[str, PilotageSource] = {
     ),
     "diddifood": PilotageSource(
         "diddifood", "DiddiFood", "DIDDIFOOD_SERVICE_URL",
-        "https://diddifood-backend-staging.diddifree.com", "/internal/pilotage", True,
+        "https://diddifood-backend-staging.diddifree.com", "/food/v1/internal/pilotage", True,
         "food:pilotage:read",
     ),
     "diddifiles": PilotageSource(

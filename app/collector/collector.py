@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 from pydantic import ValidationError
 
 from app.contracts.pilotage import PilotageSummary
+from app.contracts.breakdown import PilotageBreakdown
 from app.collector import store
 from app.core.logging import log_json
 from app.sources.catalog import enabled_modules
@@ -19,6 +20,10 @@ from app.sources.normalization import normalize_daily_summary
 
 DAILY_KIND = "daily"
 FINANCE_KIND = "finance"
+
+
+def breakdown_kind(dimension: str, metric: str) -> str:
+    return f"breakdown:{dimension}:{metric}"
 
 
 def business_timezone() -> ZoneInfo:
@@ -127,6 +132,22 @@ async def backfill_finance_module(module: str, *, days: int, client: PilotageSou
             failed += 1
             last_code = result.get("code")
     return {"module": module, "kind": FINANCE_KIND, "days": days, "collected": collected, "failed": failed, "last_error_code": last_code}
+
+
+async def collect_breakdown(module: str, *, date: str, dimension: str, metric: str, client: PilotageSourceClient | None = None) -> dict:
+    kind = breakdown_kind(dimension, metric)
+    client = client or PilotageSourceClient(module)
+    try:
+        payload = PilotageBreakdown.model_validate(await client.breakdown(date, dimension, metric))
+    except SourceError as error:
+        store.record_failure(module, kind, error.code, str(error))
+        return {"module": module, "date": date, "status": "failed", "code": error.code}
+    except ValidationError:
+        store.record_failure(module, kind, "contract_invalid", "breakdown does not match pilotage.breakdown.v1")
+        return {"module": module, "date": date, "status": "failed", "code": "contract_invalid"}
+    store.save_summary(module, kind, payload.date.isoformat(), payload.model_dump(mode="json"), payload.calculated_at.isoformat(), payload.is_final)
+    store.record_success(module, kind)
+    return {"module": module, "date": payload.date.isoformat(), "status": "collected", "dimension": dimension, "metric": metric}
 
 
 async def collect_all(*, date: str | None = None) -> list[dict]:
