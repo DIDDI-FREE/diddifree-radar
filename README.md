@@ -33,6 +33,7 @@ api (uvicorn app.main:app)
   PATCH /api/pilotage/alerts/{id}                      assign or change alert status
   GET  /api/pilotage/reports/{day|week|month}          JSON or CSV management report
   GET  /api/pilotage/health, /health                   health probes
+  GET  /ready                                          database readiness probe
 ```
 
 ## API et frontend séparés
@@ -95,3 +96,6 @@ SQLite is the default store (`pilotage/data/pilotage.sqlite3`); set
 `PILOTAGE_DATABASE_URL` for Postgres. Staging runs through
 `docker-compose.staging.yml` (postgres + api + collector), mirroring the
 Backoffice deployment layout.
+
+Operational deployment, backup, restore and rollback steps are documented in
+[`docs/STAGING_RUNBOOK.md`](docs/STAGING_RUNBOOK.md).

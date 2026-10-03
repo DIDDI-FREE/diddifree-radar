@@ -424,7 +424,27 @@ Chaque alerte possède une gravité, un propriétaire, un statut, une échéance
 
 ## Sprint 7 — staging, recette et mise en service
 
+**État : en cours**
+
 **But :** rendre Pilotage exploitable durablement.
+
+### Lot déjà livré
+
+- CI GitHub : compilation, 87 tests et construction Docker ;
+- image Docker construite et démarrée localement ;
+- sondes `/health` et `/ready`, cette dernière vérifiant réellement la base ;
+- composition staging validée par `docker compose config` ;
+- variables du sprint 6 et authentification S2S propagées aux conteneurs ;
+- scripts de sauvegarde et restauration PostgreSQL ;
+- procédure de déploiement, sauvegarde, restauration, retour arrière et rotation.
+
+### Reste du sprint
+
+- créer l'environnement et le domaine Pilotage staging ;
+- installer les secrets dans le coffre après réponse Auth ;
+- exécuter la recette complète sur PostgreSQL staging ;
+- configurer les sauvegardes planifiées et les alertes d'exploitation ;
+- protéger `main` et obtenir la validation DG.
 
 ### Dépôt et CI
 

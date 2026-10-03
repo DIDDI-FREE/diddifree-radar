@@ -167,6 +167,13 @@ def execute(query: str, params: tuple = ()) -> None:
         connection.execute(query, params)
 
 
+def is_ready() -> bool:
+    try:
+        return bool(row("SELECT 1 AS ready")["ready"])
+    except Exception:
+        return False
+
+
 def init_db() -> None:
     schema = POSTGRES_SCHEMA if database_url() else SCHEMA
     with db() as connection:

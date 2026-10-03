@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 
 from app.api.auth_routes import router as auth_router
 from app.api.routes import router as pilotage_router
-from app.core.db import init_db
+from app.core.db import init_db, is_ready
 from app.core.logging import Stopwatch, log_json
 from app.core.request_context import set_request_id
 
@@ -66,6 +66,13 @@ _STATIC_DIR = Path(__file__).resolve().parent / "static"
 @app.get("/health")
 def container_health() -> dict:
     return {"module": "pilotage", "status": "healthy"}
+
+
+@app.get("/ready")
+def container_readiness() -> dict:
+    if not is_ready():
+        raise HTTPException(status_code=503, detail={"error": {"code": "database_unavailable", "message": "Pilotage database is unavailable"}})
+    return {"module": "pilotage", "status": "ready"}
 
 
 @app.get("/", include_in_schema=False)
