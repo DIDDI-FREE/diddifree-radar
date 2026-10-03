@@ -58,7 +58,7 @@ def _local_principal(user_id: str, email: str) -> PilotagePrincipal:
     return PilotagePrincipal(user_id=user_id, role=local["role"], modules=_parse_modules(local["modules"]))
 
 
-def principal_from_oidc(token: str) -> PilotagePrincipal:
+def principal_from_oidc(token: str, client_id_header: str = "") -> PilotagePrincipal:
     global _jwks_cache
     jwks_url = os.getenv("PILOTAGE_OIDC_JWKS_URL", "https://auth-staging.diddifree.com/identity/v1/.well-known/jwks.json")
     issuer = os.getenv("PILOTAGE_OIDC_ISSUER")
@@ -78,11 +78,24 @@ def principal_from_oidc(token: str) -> PilotagePrincipal:
                 _jwks_cache = (time.time() + 300, response.json())
         key_data = next(key for key in _jwks_cache[1].get("keys", []) if key.get("kid") == header.get("kid"))
         key = jwk.construct(key_data)
-        options = {"verify_aud": bool(audience), "verify_iss": bool(issuer)}
-        claims = jwt.decode(token, key, algorithms=[header["alg"]], audience=audience, issuer=issuer, options=options)
+        unverified = jwt.get_unverified_claims(token)
+        is_service = str(unverified.get("sub", "")).startswith("service:")
+        resolved_audience = "pilotage" if is_service else audience
+        options = {"verify_aud": bool(resolved_audience), "verify_iss": bool(issuer)}
+        claims = jwt.decode(token, key, algorithms=[header["alg"]], audience=resolved_audience, issuer=issuer, options=options)
         user_id = claims.get("user_id") or claims.get("sub")
-        if not user_id or claims.get("status") != "active":
+        if not user_id or claims.get("status", "active" if is_service else None) != "active":
             raise JWTError("OIDC identity is not active")
+        if is_service:
+            trusted = {value.strip() for value in os.getenv("PILOTAGE_TRUSTED_SERVICE_SUBJECTS", "").split(",") if value.strip()}
+            scopes = set(str(claims.get("scope", "")).split())
+            token_client_id = claims.get("client_id") or claims.get("azp") or ""
+            if user_id not in trusted or "pilotage:read" not in scopes:
+                raise JWTError("Service is not authorized for Pilotage")
+            if not client_id_header or client_id_header != token_client_id:
+                raise JWTError("Service client id does not match token")
+            role = "finance_admin" if "pilotage:finance:read" in scopes else "audit_read"
+            return PilotagePrincipal(user_id=user_id, role=role, modules=_parse_modules(str(claims.get("modules", "global"))))
         return _local_principal(user_id, claims.get("email", ""))
     except (JWTError, KeyError, httpx.HTTPError, ValueError) as error:
         raise ValueError("Invalid OIDC token") from error
@@ -92,7 +105,7 @@ def get_principal(request: Request) -> PilotagePrincipal:
     authorization = request.headers.get("Authorization", "")
     if authorization.startswith("Bearer "):
         try:
-            return principal_from_oidc(authorization.removeprefix("Bearer ").strip())
+            return principal_from_oidc(authorization.removeprefix("Bearer ").strip(), request.headers.get("X-Client-ID", ""))
         except ValueError:
             raise HTTPException(status_code=401, detail={"error": {"code": "invalid_token", "message": "OIDC token was rejected"}})
     if os.getenv("PILOTAGE_ALLOW_INSECURE_HEADERS", "0") == "1":

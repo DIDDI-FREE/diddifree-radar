@@ -30,6 +30,21 @@ api (uvicorn app.main:app)
   GET  /api/pilotage/health, /health                   health probes
 ```
 
+## API et frontend séparés
+
+En staging et production, lancer l'API avec `PILOTAGE_SERVE_FRONTEND=0`.
+La racine `/` répond alors `404`, tandis que `/api/*`, `/docs`, `/openapi.json`
+et `/health` restent disponibles. Le frontend peut être déployé sur un autre
+domaine et autorisé explicitement par `PILOTAGE_CORS_ORIGINS`.
+
+Le frontend actuel reste servi par l'API en développement avec
+`PILOTAGE_SERVE_FRONTEND=1`. Cette option facilite le développement local sans
+créer de dépendance fonctionnelle entre les deux composants.
+
+Un consommateur comme Odoo doit utiliser les routes JSON sous `/api/pilotage`
+et le contrat OpenAPI publié par `/openapi.json`. Il ne doit pas dépendre du
+HTML ni appeler directement les bases des modules sources.
+
 Failure rule (protocol): a failed source never becomes a zero KPI. Failures
 only update `pilotage_source_state`; the last valid summary keeps being
 served with freshness `stale`. A module that has never answered reports

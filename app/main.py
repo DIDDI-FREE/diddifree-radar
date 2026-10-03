@@ -5,7 +5,7 @@ import secrets
 
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -70,4 +70,6 @@ def container_health() -> dict:
 
 @app.get("/", include_in_schema=False)
 def dashboard() -> FileResponse:
+    if os.getenv("PILOTAGE_SERVE_FRONTEND", "1").strip().lower() not in {"1", "true", "yes"}:
+        raise HTTPException(status_code=404, detail="Frontend is deployed separately")
     return FileResponse(_STATIC_DIR / "index.html", media_type="text/html")

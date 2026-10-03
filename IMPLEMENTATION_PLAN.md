@@ -172,6 +172,9 @@ Afficher une journée, une semaine et un mois contenant une journée incomplète
 - comparaison quotidienne avec le même jour de la semaine précédente ;
 - journal protégé des consultations financières ;
 - affichage des liens profonds fournis par les modules.
+- exécution API seule avec frontend déployable séparément ;
+- contrat OpenAPI réutilisable par Odoo ;
+- authentification S2S entrante avec audience `pilotage` et scopes séparés.
 
 ### Écran principal
 
