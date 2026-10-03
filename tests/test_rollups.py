@@ -27,9 +27,11 @@ def seed_day(
         "timezone": "Africa/Abidjan",
         "is_final": is_final,
         "metrics": [
+            {"name": "rides_requested", "label": "Courses demandées", "value": rides * 2, "unit": "count", "aggregation": "sum"},
             {"name": "rides_completed", "label": "Courses terminées", "value": rides, "unit": "count", "aggregation": "sum"},
             {"name": "fare_total_xof", "label": "CA", "value": fare, "unit": "XOF", "aggregation": "sum"},
-            {"name": "completion_rate", "label": "Taux", "value": 85.0, "unit": "percent", "aggregation": "ratio"},
+            {"name": "completion_rate", "label": "Taux", "value": 50.0, "unit": "percent", "aggregation": "ratio", "numerator": "rides_completed", "denominator": "rides_requested", "scale": 100},
+            {"name": "average_fare_xof", "label": "Panier moyen", "value": 100, "unit": "XOF", "aggregation": "weighted_average", "numerator": "fare_total_xof", "denominator": "rides_completed"},
         ],
         "calculated_at": utc_now_iso(),
     }
@@ -67,14 +69,15 @@ class RollupTests(unittest.TestCase):
             self.assertEqual(bucket["expected_days"], 7)
         self.assertEqual(date.fromisoformat(buckets[-1]["start"]), week_start(self.today))
 
-    def test_additive_metrics_are_summed_and_rates_excluded(self):
+    def test_additive_and_derived_metrics_are_recomputed(self):
         self._seed_days(15)
         buckets = aggregate_periods("diddigo", period="week", count=3, today=self.today)
         full_week = next(b for b in buckets if b["is_complete"])
         metrics = {m["name"]: m for m in full_week["metrics"]}
         self.assertEqual(metrics["rides_completed"]["value"], 70)
         self.assertEqual(metrics["fare_total_xof"]["value"], 7000)
-        self.assertNotIn("completion_rate", metrics, "percent metrics must not be summed")
+        self.assertEqual(metrics["completion_rate"]["value"], 50.0)
+        self.assertEqual(metrics["average_fare_xof"]["value"], "100.00")
 
     def test_snapshot_metric_keeps_last_value(self):
         start = week_start(self.today)

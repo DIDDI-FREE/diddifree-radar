@@ -37,6 +37,7 @@ def _module_block(module: str) -> dict:
         "summary": record["payload"] if record else None,
         "freshness": freshness.model_dump(mode="json"),
         "collected_at": record["collected_at"] if record else None,
+        "revision": record["revision"] if record else None,
     }
     if state and state["last_error_code"]:
         block["last_error"] = {"code": state["last_error_code"], "message": state["last_error_message"]}
@@ -86,7 +87,13 @@ def module_daily_summary(
                 }
             },
         )
-    return {"summary": record["payload"], "freshness": freshness.model_dump(mode="json"), "collected_at": record["collected_at"]}
+    return {
+        "summary": record["payload"],
+        "freshness": freshness.model_dump(mode="json"),
+        "revision": record["revision"],
+        "first_collected_at": record["first_collected_at"],
+        "collected_at": record["collected_at"],
+    }
 
 
 @router.get("/modules/{module}/history")
@@ -109,6 +116,9 @@ def module_history(
                 "date": record["summary_date"],
                 "is_final": bool(record["is_final"]),
                 "metrics": record["payload"].get("metrics", []),
+                "revision": record["revision"],
+                "state": "corrected" if record["revision"] > 1 else ("final" if record["is_final"] else "provisional"),
+                "first_collected_at": record["first_collected_at"],
                 "collected_at": record["collected_at"],
             }
             for record in records

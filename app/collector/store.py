@@ -22,17 +22,34 @@ def freshness_window_seconds() -> int:
 
 def save_summary(module: str, kind: str, summary_date: str, payload: dict, calculated_at: str, is_final: bool) -> None:
     now = utc_now_iso()
+    existing = row(
+        "SELECT payload, revision, first_collected_at, collected_at FROM pilotage_summaries WHERE module = ? AND kind = ? AND summary_date = ?",
+        (module, kind, summary_date),
+    )
+    serialized = json.dumps(payload, default=str, sort_keys=True)
+    revision = 1
+    first_collected_at = now
+    if existing:
+        previous = json.loads(existing["payload"])
+        ignored = {"calculated_at"}
+        previous_business = {key: value for key, value in previous.items() if key not in ignored}
+        current_business = {key: value for key, value in payload.items() if key not in ignored}
+        changed = json.dumps(previous_business, default=str, sort_keys=True) != json.dumps(current_business, default=str, sort_keys=True)
+        revision = int(existing.get("revision") or 1) + int(changed)
+        first_collected_at = existing.get("first_collected_at") or existing["collected_at"]
     execute(
         """
-        INSERT INTO pilotage_summaries (module, kind, summary_date, payload, calculated_at, is_final, collected_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO pilotage_summaries (module, kind, summary_date, payload, calculated_at, is_final, revision, first_collected_at, collected_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (module, kind, summary_date) DO UPDATE SET
           payload = excluded.payload,
           calculated_at = excluded.calculated_at,
           is_final = excluded.is_final,
+          revision = excluded.revision,
+          first_collected_at = excluded.first_collected_at,
           collected_at = excluded.collected_at
         """,
-        (module, kind, summary_date, json.dumps(payload, default=str), calculated_at, int(is_final), now),
+        (module, kind, summary_date, serialized, calculated_at, int(is_final), revision, first_collected_at, now),
     )
 
 

@@ -11,6 +11,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 SCHEMA_VERSION = "001_initial"
+SUMMARY_REVISION_MIGRATION = "002_summary_revisions"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS pilotage_users (
@@ -30,6 +31,8 @@ CREATE TABLE IF NOT EXISTS pilotage_summaries (
   payload TEXT NOT NULL,
   calculated_at TEXT NOT NULL,
   is_final INTEGER NOT NULL DEFAULT 0,
+  revision INTEGER NOT NULL DEFAULT 1,
+  first_collected_at TEXT,
   collected_at TEXT NOT NULL,
   UNIQUE (module, kind, summary_date)
 );
@@ -122,4 +125,18 @@ def init_db() -> None:
         connection.execute(
             "INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?) ON CONFLICT (id) DO NOTHING",
             (SCHEMA_VERSION, utc_now_iso()),
+        )
+        if database_url():
+            connection.execute("ALTER TABLE pilotage_summaries ADD COLUMN IF NOT EXISTS revision INTEGER NOT NULL DEFAULT 1")
+            connection.execute("ALTER TABLE pilotage_summaries ADD COLUMN IF NOT EXISTS first_collected_at TEXT")
+        else:
+            columns = {record[1] for record in connection.execute("PRAGMA table_info(pilotage_summaries)").fetchall()}
+            if "revision" not in columns:
+                connection.execute("ALTER TABLE pilotage_summaries ADD COLUMN revision INTEGER NOT NULL DEFAULT 1")
+            if "first_collected_at" not in columns:
+                connection.execute("ALTER TABLE pilotage_summaries ADD COLUMN first_collected_at TEXT")
+        connection.execute("UPDATE pilotage_summaries SET first_collected_at = collected_at WHERE first_collected_at IS NULL")
+        connection.execute(
+            "INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?) ON CONFLICT (id) DO NOTHING",
+            (SUMMARY_REVISION_MIGRATION, utc_now_iso()),
         )

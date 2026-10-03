@@ -77,7 +77,7 @@ def _accumulate(totals: dict[str, dict], metric: dict) -> None:
         entry["_value"] = max(entry["_value"], value)
 
 
-def _public_metrics(totals: dict[str, dict]) -> list[dict]:
+def _public_metrics(totals: dict[str, dict], derived: dict[str, dict]) -> list[dict]:
     metrics = []
     for entry in totals.values():
         metrics.append(
@@ -91,6 +91,24 @@ def _public_metrics(totals: dict[str, dict]) -> list[dict]:
                     string_value=entry["_string_value"],
                     integral_value=entry["_integral_value"],
                 ),
+            }
+        )
+    for spec in derived.values():
+        numerator = totals.get(spec.get("numerator"))
+        denominator = totals.get(spec.get("denominator"))
+        if not numerator or not denominator or denominator["_value"] == 0:
+            continue
+        value = numerator["_value"] / denominator["_value"] * Decimal(str(spec.get("scale", 1)))
+        metrics.append(
+            {
+                "name": spec["name"],
+                "label": spec.get("label") or spec["name"],
+                "unit": spec.get("unit"),
+                "aggregation": spec["aggregation"],
+                "numerator": spec.get("numerator"),
+                "denominator": spec.get("denominator"),
+                "scale": spec.get("scale", 1),
+                "value": format(value.quantize(Decimal("0.01")), "f") if str(spec.get("unit", "")).lower() == "xof" else float(value.quantize(Decimal("0.01"))),
             }
         )
     return metrics
@@ -131,6 +149,7 @@ def aggregate_periods(module: str, *, period: str, count: int, today: date) -> l
     for offset in range(count - 1, -1, -1):
         start, end, key = _bucket_bounds(period, today, offset)
         totals: dict[str, dict] = {}
+        derived: dict[str, dict] = {}
         days_with_data = 0
         day = start
         while day <= min(end, today):
@@ -138,7 +157,10 @@ def aggregate_periods(module: str, *, period: str, count: int, today: date) -> l
             if record:
                 days_with_data += 1
                 for metric in record["payload"].get("metrics", []):
-                    _accumulate(totals, metric)
+                    if metric.get("aggregation") in {"ratio", "weighted_average"}:
+                        derived.setdefault(metric.get("name", ""), metric)
+                    else:
+                        _accumulate(totals, metric)
             day += timedelta(days=1)
         expected_days = (end - start).days + 1
         buckets.append(
@@ -149,7 +171,7 @@ def aggregate_periods(module: str, *, period: str, count: int, today: date) -> l
                 "days_with_data": days_with_data,
                 "expected_days": expected_days,
                 "is_complete": end < today and days_with_data == expected_days,
-                "metrics": _public_metrics(totals),
+                "metrics": _public_metrics(totals, derived),
             }
         )
     return buckets

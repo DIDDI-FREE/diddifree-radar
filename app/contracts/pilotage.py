@@ -42,6 +42,9 @@ class PilotageMetric(BaseModel):
     aggregation: Literal["sum", "last", "min", "max", "weighted_average", "ratio"] = "sum"
     label: str | None = None
     description: str | None = None
+    numerator: str | None = None
+    denominator: str | None = None
+    scale: int | float = 1
 
 
 class DeepLink(BaseModel):

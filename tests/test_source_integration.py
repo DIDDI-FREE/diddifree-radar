@@ -83,6 +83,27 @@ class SourceNormalizationTests(unittest.TestCase):
         normalized = normalize_daily_summary("diddigo", payload)
         self.assertEqual(normalized["metrics"][0]["aggregation"], "sum")
 
+    def test_daily_ratios_and_weighted_averages_use_source_components(self):
+        payload = {"metrics": [
+            {"name": "rides_requested", "value": 12, "unit": "count"},
+            {"name": "rides_completed", "value": 8, "unit": "count"},
+            {"name": "completed_fare_total_xof", "value": 24000, "unit": "XOF"},
+        ]}
+        metrics = {metric["name"]: metric for metric in normalize_daily_summary("diddigo", payload)["metrics"]}
+        self.assertEqual(metrics["ride_completion_rate"]["value"], 66.67)
+        self.assertEqual(metrics["average_completed_fare_xof"]["value"], "3000.00")
+        self.assertEqual(metrics["ride_completion_rate"]["denominator"], "rides_requested")
+
+    def test_derived_metric_is_omitted_when_denominator_is_zero(self):
+        payload = {"metrics": [
+            {"name": "rides_requested", "value": 0, "unit": "count"},
+            {"name": "rides_completed", "value": 0, "unit": "count"},
+            {"name": "completed_fare_total_xof", "value": 0, "unit": "XOF"},
+        ]}
+        names = {metric["name"] for metric in normalize_daily_summary("diddigo", payload)["metrics"]}
+        self.assertNotIn("ride_completion_rate", names)
+        self.assertNotIn("average_completed_fare_xof", names)
+
 
 if __name__ == "__main__":
     unittest.main()
