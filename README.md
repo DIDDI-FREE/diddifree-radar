@@ -1,5 +1,7 @@
 # DiddiFree Pilotage (DiddiRadar backend)
 
+Implementation roadmap: [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md).
+
 Read-model service for management visibility: module KPIs, freshness, and
 deep links back to the Backoffice. It observes; it never mutates DiddiGo,
 DiddiSend, DiddiPay, DiddiMap, DiddiFood, DiddiFiles or DiddiFreeID records.

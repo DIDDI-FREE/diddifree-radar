@@ -1,0 +1,399 @@
+# DiddiFree Pilotage — plan d'implémentation par sprints
+
+**Dépôt officiel :** `https://github.com/DIDDI-FREE/diddifree-radar.git`  
+**Application :** DiddiFree Pilotage  
+**Cadence proposée :** un sprint d'une semaine  
+**Fuseau métier :** `Africa/Abidjan`
+
+## Objectif de la V1
+
+La V1 doit permettre à la Direction générale et aux responsables autorisés de comprendre rapidement :
+
+- l'activité de DiddiFree ;
+- l'évolution des utilisateurs ;
+- les courses et livraisons ;
+- le volume d'affaires ;
+- les encaissements et remboursements ;
+- le revenu de DiddiFree ;
+- les revenus dus et versés aux acteurs de la plateforme ;
+- les anomalies et retards de synchronisation.
+
+Pilotage reste en lecture seule. Les opérations sensibles sont réalisées dans le Backoffice ou dans le module propriétaire.
+
+## État au 3 octobre 2026
+
+| Sprint | État | Résultat |
+| --- | --- | --- |
+| Sprint 0 | terminé | Contrats, routes, scopes et KPI identifiés |
+| Sprint 1 | terminé | DiddiFreeID, DiddiGo, DiddiSend et DiddiPay collectés en staging |
+| Sprint 2 | prochain | Agrégations et historique fiables |
+| Sprints 3 à 7 | à faire | Produit, finance, granularité, alertes et déploiement |
+
+### Fondation déjà disponible
+
+- API FastAPI ;
+- authentification humaine DiddiFreeID ;
+- rôles Pilotage locaux ;
+- jetons S2S DiddiFreeID ;
+- collecteur périodique ;
+- stockage SQLite ou PostgreSQL ;
+- historique quotidien ;
+- états `fresh`, `stale` et `unavailable` ;
+- interface jour, semaine et mois ;
+- Docker et composition staging ;
+- 45 tests réussis.
+
+### Sources déjà validées
+
+| Source | Route | KPI collectés | État |
+| --- | --- | --- | --- |
+| DiddiFreeID | `/identity/v1/internal/pilotage/identity-summary` | utilisateurs, inscriptions, vérifiés, actifs, DAU, MAU | `200` staging |
+| DiddiGo | `/internal/pilotage/daily-summary` | courses demandées, terminées, valeur terminée | `200` staging |
+| DiddiSend | `/internal/pilotage/daily-summary` | livraisons demandées, terminées, valeur terminée | `200` staging |
+| DiddiPay | `/payfund/v1/internal/pilotage/daily-summary` | captures, remboursements, frais, settlements, payouts | `200` staging |
+
+---
+
+## Sprint 0 — cadrage des contrats
+
+**État : terminé**
+
+### Livré
+
+- séparation entre Backoffice et Pilotage ;
+- modèle commun `pilotage.v1` ;
+- règles de fraîcheur ;
+- journée métier en heure d'Abidjan ;
+- routes, audiences et scopes des premières sources ;
+- distinction entre valeur métier, encaissement et revenu ;
+- règle : une panne ne devient jamais un faux zéro.
+
+### Critère de fin
+
+Chaque KPI possède une source propriétaire, une unité, une période et une définition minimale.
+
+---
+
+## Sprint 1 — intégration des sources principales
+
+**État : terminé**
+
+### Livré
+
+- chemins journaliers configurables ;
+- audience S2S configurable par source ;
+- intégration DiddiFreeID ;
+- intégration DiddiGo ;
+- intégration DiddiSend ;
+- intégration DiddiPay ;
+- enrichissement des métriques avec leur mode d'agrégation ;
+- collecte indépendante : la panne d'un module ne bloque pas les autres ;
+- première collecte réelle des quatre sources ;
+- overview consolidé avec quatre sources `fresh`.
+
+### Critère de fin
+
+Les quatre sources répondent et leur dernière valeur valide est disponible dans `GET /api/pilotage/overview`.
+
+---
+
+## Sprint 2 — agrégations et historique fiables
+
+**But :** garantir que les vues semaine et mois donnent des chiffres mathématiquement corrects.
+
+### Travail backend
+
+1. Appliquer les modes d'agrégation :
+   - `sum` pour les flux ;
+   - `last` pour les populations et soldes ;
+   - `min` et `max` ;
+   - `weighted_average` pour les moyennes ;
+   - `ratio` recalculé depuis numérateur et dénominateur.
+2. Conserver les montants XOF avec une précision décimale exacte.
+3. Empêcher l'addition de `users_total`, DAU, MAU, soldes et taux.
+4. Distinguer journées provisoires, finales et corrigées.
+5. Conserver l'heure de dernière correction.
+6. Effectuer le backfill des cinq derniers jours pour les quatre sources.
+7. Rendre le backfill reprenable après une erreur.
+8. Exposer les périodes incomplètes sans les présenter comme définitives.
+
+### Travail interface
+
+- afficher les XOF décimaux correctement ;
+- afficher « période en cours » ;
+- signaler les journées manquantes ;
+- afficher la couverture, par exemple `5/7 jours disponibles`.
+
+### Critères d'acceptation
+
+- `users_total` mensuel correspond à la dernière valeur du mois ;
+- les courses et paiements mensuels sont additionnés ;
+- les montants DiddiSend gardent leurs décimales ;
+- les taux ne sont jamais additionnés ;
+- le changement de jour respecte `Africa/Abidjan` ;
+- les cinq derniers jours sont disponibles pour chaque source prête.
+
+### Démonstration
+
+Afficher une journée, une semaine et un mois contenant une journée incomplète et une correction tardive.
+
+---
+
+## Sprint 3 — écran Direction générale et droits
+
+**But :** rendre Pilotage compréhensible en moins d'une minute.
+
+### Écran principal
+
+#### Bandeau
+
+- date et heure d'Abidjan ;
+- dernière synchronisation ;
+- nombre de sources fraîches, périmées et indisponibles ;
+- alertes critiques.
+
+#### Cartes Direction générale
+
+- utilisateurs totaux, nouveaux, DAU et MAU ;
+- courses demandées et terminées ;
+- livraisons demandées et terminées ;
+- taux de réalisation ;
+- valeur des opérations terminées ;
+- paiements confirmés ;
+- remboursements ;
+- net attendu et fonds non réglés.
+
+#### Comparaisons
+
+- veille ;
+- même jour de la semaine précédente ;
+- 7 jours précédents ;
+- mois précédent.
+
+### Droits
+
+- `dg_global` : vue consolidée ;
+- `finance_admin` : données financières ;
+- `operations_manager` : activité opérationnelle ;
+- `module_manager` : modules assignés ;
+- `audit_read` : historique en lecture seule.
+
+### Travail complémentaire
+
+- ajouter les libellés métier manquants ;
+- ajouter une description courte à chaque KPI ;
+- masquer les données financières selon le rôle ;
+- auditer les consultations financières ;
+- ajouter les liens profonds vers le Backoffice.
+
+### Critères d'acceptation
+
+- une source indisponible ne bloque pas l'écran ;
+- aucun manque de données n'est affiché comme zéro ;
+- deux rôles différents voient des périmètres différents ;
+- chaque carte affiche période, unité et fraîcheur ;
+- l'écran fonctionne sur ordinateur et tablette.
+
+---
+
+## Sprint 4 — revenus et rapprochement financier
+
+**But :** séparer clairement ce que paie le client, ce que reçoit DiddiFree et ce qui revient aux participants.
+
+### Modèle financier cible
+
+```text
+Volume d'affaires brut
+- remboursements et ajustements
+= volume d'affaires net
+
+Volume net
+- revenus attribués aux participants
+- frais processeur
+- taxes et coûts connus
+= revenu DiddiFree
+```
+
+### Travail
+
+1. Collecter le `finance-summary` DiddiSend.
+2. Définir ou obtenir la ventilation financière DiddiGo.
+3. Conserver DiddiPay comme source officielle des captures, remboursements, settlements et payouts.
+4. Distinguer :
+   - commission générée ;
+   - commission encaissée ;
+   - montant dû aux participants ;
+   - montant versé ;
+   - montant restant à payer.
+5. Ajouter les contrôles de rapprochement entre opérations métier et paiements.
+6. Signaler les écarts sans les masquer.
+7. Auditer l'historique DiddiPay pouvant manquer d'anciens journaux `capture`.
+
+### Critères d'acceptation
+
+- aucune opération économique n'est comptée deux fois ;
+- chaque montant indique son propriétaire et sa définition ;
+- une journée connue est rapprochée avec DiddiPay ;
+- les écarts sont visibles ;
+- une absence de settlement ne devient pas un encaissement nul définitif.
+
+---
+
+## Sprint 5 — granularité opérationnelle
+
+**But :** permettre de comprendre où, quand et pourquoi les performances évoluent.
+
+### Dimensions à exposer par les modules
+
+- heure ou tranche horaire ;
+- ville et commune ;
+- zone opérationnelle ;
+- type de service ;
+- moyen de paiement ;
+- statut final ;
+- catégorie de participant.
+
+### Travail Pilotage
+
+- définir un contrat `breakdown` agrégé ;
+- collecter les ventilations sans recopier les opérations individuelles ;
+- ajouter filtres et graphiques ;
+- garantir que la somme des ventilations correspond au total parent ;
+- masquer les regroupements trop petits si nécessaire ;
+- préparer l'intégration DiddiFood ;
+- préparer les indicateurs géographiques DiddiMap.
+
+### Revenus des participants
+
+Afficher par catégorie :
+
+- montant attribué ;
+- montant payé ;
+- reste à payer ;
+- nombre de bénéficiaires ;
+- moyenne ;
+- médiane.
+
+Le détail personnel d'un chauffeur, coursier ou restaurant appartient à DiddiFree Pro.
+
+### Critères d'acceptation
+
+- aucune donnée personnelle n'apparaît dans la vue DG ;
+- les filtres conservent la période et le fuseau ;
+- les ventilations se rapprochent du total ;
+- les modules absents restent `unavailable` sans bloquer les autres.
+
+---
+
+## Sprint 6 — objectifs, alertes et rapports
+
+**But :** transformer les chiffres en décisions suivies.
+
+### Objectifs
+
+- valeur cible quotidienne et mensuelle ;
+- objectif par module ;
+- réalisé, écart et progression ;
+- historique des modifications d'objectif.
+
+### Alertes
+
+- source périmée ou indisponible ;
+- baisse inhabituelle d'activité ;
+- taux d'annulation élevé ;
+- écart entre activité et encaissements ;
+- fonds non réglés ;
+- backlog ou composant technique dégradé.
+
+Chaque alerte possède une gravité, un propriétaire, un statut, une échéance et un historique.
+
+### Rapports
+
+- rapport quotidien ;
+- rapport hebdomadaire ;
+- rapport mensuel ;
+- export CSV ;
+- export PDF ;
+- audit des exports financiers.
+
+### Critères d'acceptation
+
+- une même anomalie n'est pas recréée toutes les 30 secondes ;
+- les seuils sont configurables ;
+- le rapport indique les données absentes ou périmées ;
+- les exports respectent les droits.
+
+---
+
+## Sprint 7 — staging, recette et mise en service
+
+**But :** rendre Pilotage exploitable durablement.
+
+### Dépôt et CI
+
+- conserver le remote `diddifree-radar.git` ;
+- pousser la branche `main` ;
+- ajouter lint, tests et construction Docker dans la CI ;
+- protéger la branche principale selon les règles de l'équipe.
+
+### Déploiement
+
+- PostgreSQL staging ;
+- conteneur API ;
+- conteneur collecteur ;
+- domaine Pilotage ;
+- CORS et JWKS DiddiFreeID ;
+- variables et secrets dans le coffre ;
+- sauvegarde et restauration ;
+- logs et alertes d'exploitation ;
+- procédure de retour arrière.
+
+### Recette métier
+
+- comparer chaque KPI à des opérations connues ;
+- vérifier une opération créée avant minuit et terminée après minuit ;
+- vérifier remboursement partiel et correction tardive ;
+- vérifier journée vide et panne de source ;
+- vérifier tous les rôles ;
+- vérifier jour, semaine et mois.
+
+### Sécurité avant mise en service
+
+- renouveler les secrets Pilotage DiddiGo et DiddiSend ;
+- mettre à jour le coffre ;
+- redéployer ;
+- confirmer les nouveaux jetons ;
+- vérifier qu'aucun secret n'est présent dans Git ou les logs.
+
+### Critères de mise en service
+
+- quatre sources validées avec des données connues ;
+- agrégations approuvées ;
+- rôles approuvés ;
+- sauvegarde et retour arrière documentés ;
+- rotation terminée ;
+- Direction générale valide le premier écran.
+
+---
+
+## Ordre d'exécution immédiat
+
+1. Sprint 2 : corriger les agrégations.
+2. Backfill des cinq derniers jours.
+3. Sprint 3 : finaliser l'écran DG et les droits.
+4. Sprint 4 : revenus et rapprochement.
+5. Sprint 5 : ventilations et autres modules.
+6. Sprint 6 : objectifs, alertes et rapports.
+7. Sprint 7 : déploiement et recette.
+
+## Définition de terminé
+
+Un élément est terminé lorsque :
+
+- le contrat métier est documenté ;
+- le code est versionné ;
+- les états d'erreur sont gérés ;
+- les tests pertinents passent ;
+- une recette staging utilise des données connues ;
+- la documentation d'exploitation est mise à jour ;
+- la démonstration du sprint est acceptée.
