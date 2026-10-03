@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 from decimal import Decimal
 
@@ -17,6 +17,7 @@ from app.core.request_context import get_request_id
 from app.sources.catalog import PILOTAGE_SOURCES, enabled_modules, get_source
 from app.planning import list_objectives, objective_history, set_objective
 from app.alerts import alert_history, list_alerts, reconcile_source_alerts, update_alert
+from app.reports import build_report, report_csv
 
 router = APIRouter(prefix="/pilotage", tags=["pilotage"])
 
@@ -164,6 +165,26 @@ def read_alert_history(alert_id: int, principal: PilotagePrincipal = Depends(get
     if current["module"]:
         require_module_access(principal, current["module"])
     return {"items": alert_history(alert_id)}
+
+
+@router.get("/reports/{period}")
+def report(
+    period: str,
+    anchor: date_type = Query(default_factory=lambda: date_type.fromisoformat(business_today())),
+    format: str = Query(default="json", pattern="^(json|csv)$"),
+    principal: PilotagePrincipal = Depends(get_principal),
+):
+    if period not in {"day", "week", "month"}:
+        raise HTTPException(status_code=404, detail={"error": {"code": "unknown_report", "message": "Report period must be day, week or month"}})
+    modules = [module for module in enabled_modules() if principal.can_view(module)]
+    include_finance = principal.role in FINANCE_ROLES
+    payload = build_report(period=period, anchor=anchor, modules=modules, include_finance=include_finance)
+    if include_finance:
+        _audit_financial_access(principal, f"report-{format}")
+    if format == "csv":
+        filename = f"pilotage-{period}-{anchor.isoformat()}.csv"
+        return Response(content=report_csv(payload), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+    return payload
 
 
 def _module_block(module: str, principal: PilotagePrincipal) -> dict:

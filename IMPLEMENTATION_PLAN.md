@@ -366,7 +366,25 @@ Le détail personnel d'un chauffeur, coursier ou restaurant appartient à DiddiF
 
 ## Sprint 6 — objectifs, alertes et rapports
 
+**État : en cours**
+
 **But :** transformer les chiffres en décisions suivies.
+
+### Lot déjà livré
+
+- objectifs quotidiens et mensuels versionnés, avec réalisé, écart et progression ;
+- contrôle des droits financiers et par module sur les objectifs ;
+- alertes persistantes de source, dédupliquées, assignables et historisées ;
+- résolution automatique d'une alerte quand la source redevient saine ;
+- rapports JSON quotidiens, hebdomadaires et mensuels ;
+- export CSV avec couverture, fraîcheur et audit des consultations financières ;
+- onglet `Décisions` affichant objectifs et alertes.
+
+### Reste du sprint
+
+- seuils configurables et détection des baisses, annulations et écarts financiers ;
+- export PDF ;
+- recette staging des objectifs, alertes et rapports.
 
 ### Objectifs
 

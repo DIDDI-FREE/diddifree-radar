@@ -89,7 +89,7 @@ let session = null;
 let refreshTimer = null;
 let tab = sessionStorage.getItem("pilotage_tab") || "day";
 let selectedDate = null; // ISO; set from overview on load
-const cache = { overview: null, sources: null, finance: null, financeWeeks: {}, histories: {}, weeks: {}, months: {}, breakdowns: {} };
+const cache = { overview: null, sources: null, finance: null, financeWeeks: {}, histories: {}, weeks: {}, months: {}, breakdowns: {}, objectives: [], alerts: [] };
 
 const BREAKDOWN_VIEWS = {
   diddigo: [
@@ -206,9 +206,11 @@ function metricSeries(history, name, lastN) {
 
 /* ---------- data loading ---------- */
 async function loadAll() {
-  const [overview, sources] = await Promise.all([api("/overview"), api("/sources")]);
+  const [overview, sources, objectives, alerts] = await Promise.all([api("/overview"), api("/sources"), api("/objectives"), api("/alerts")]);
   cache.overview = overview;
   cache.sources = sources;
+  cache.objectives = objectives.items || [];
+  cache.alerts = alerts.items || [];
   cache.finance = session && ["dg_global", "finance_admin"].includes(session.role) ? await api("/finance/overview").catch(() => null) : null;
   if (cache.finance) {
     await Promise.all(["diddigo", "diddisend"].map(async module => {
@@ -399,6 +401,20 @@ function renderBreakdowns() {
     (cards || '<div class="card"><div class="empty">Aucune ventilation disponible pour vos modules.</div></div>') + '</div>';
 }
 
+/* ---------- objectives and alerts ---------- */
+function renderDecisions() {
+  const objectiveRows = cache.objectives.map(item => '<tr><td>' + esc(item.module) + '</td><td>' + esc(item.metric) + '</td><td>' +
+    esc(item.period_start) + ' · ' + esc(item.period) + '</td><td>' + fmtNum(item.actual_value ?? "—", item.unit) + '</td><td>' +
+    fmtNum(item.target_value, item.unit) + '</td><td>' + (item.progress_percent == null ? '—' : fmtNum(item.progress_percent, null) + ' %') + '</td></tr>').join("");
+  const alertRows = cache.alerts.map(item => '<tr><td><span class="badge ' + (item.severity === "critical" ? "unavailable" : "stale") + '">' +
+    esc(item.severity) + '</span></td><td>' + esc(item.module || "global") + '</td><td style="text-align:left">' + esc(item.title) + '</td><td>' +
+    esc(item.owner_id || "—") + '</td><td>' + esc(item.status) + '</td><td>' + esc(item.due_at || "—") + '</td></tr>').join("");
+  return '<div class="wide-card"><h3>Objectifs</h3><div class="table-wrap"><table><thead><tr><th>Module</th><th>KPI</th><th>Période</th><th>Réalisé</th><th>Objectif</th><th>Progression</th></tr></thead><tbody>' +
+    (objectiveRows || '<tr><td colspan="6" class="empty">Aucun objectif défini.</td></tr>') + '</tbody></table></div></div>' +
+    '<div class="wide-card"><h3>Alertes</h3><div class="table-wrap"><table><thead><tr><th>Gravité</th><th>Module</th><th style="text-align:left">Alerte</th><th>Propriétaire</th><th>Statut</th><th>Échéance</th></tr></thead><tbody>' +
+    (alertRows || '<tr><td colspan="6" class="empty">Aucune alerte.</td></tr>') + '</tbody></table></div></div>';
+}
+
 /* ---------- sources ---------- */
 function sourcesTable(items) {
   const rows = items.map(s =>
@@ -411,7 +427,7 @@ function sourcesTable(items) {
 
 /* ---------- shell ---------- */
 function tabsBar() {
-  const defs = [["day", "Jour"], ["week", "Semaine"], ["month", "Mois"], ["breakdowns", "Analyses"]];
+  const defs = [["day", "Jour"], ["week", "Semaine"], ["month", "Mois"], ["breakdowns", "Analyses"], ["decisions", "Décisions"]];
   if (session && ["dg_global", "finance_admin"].includes(session.role)) defs.push(["finance", "Finance"]);
   return '<div class="tabs">' + defs.map(([id, label]) =>
     '<button class="ghost' + (tab === id ? " on" : "") + '" data-tab="' + id + '">' + label + "</button>").join("") + "</div>";
@@ -430,7 +446,7 @@ function statusBand() {
 
 function renderDashboard() {
   const app = document.getElementById("app");
-  const body = tab === "day" ? renderDay() : tab === "finance" ? renderFinance() : tab === "breakdowns" ? renderBreakdowns() : renderPeriod(tab);
+  const body = tab === "day" ? renderDay() : tab === "finance" ? renderFinance() : tab === "breakdowns" ? renderBreakdowns() : tab === "decisions" ? renderDecisions() : renderPeriod(tab);
   app.innerHTML = statusBand() + tabsBar() + body + sourcesTable(cache.sources.items);
   app.querySelectorAll("[data-tab]").forEach(btn => {
     btn.onclick = () => { tab = btn.dataset.tab; sessionStorage.setItem("pilotage_tab", tab); renderDashboard(); };

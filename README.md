@@ -27,6 +27,11 @@ api (uvicorn app.main:app)
   GET  /api/pilotage/modules/{module}/daily-summary    one stored summary
   GET  /api/pilotage/sources                           collection state per source
   POST /api/pilotage/sources/{module}/collect          manual collection trigger
+  GET  /api/pilotage/objectives                        objectives and progress
+  PUT  /api/pilotage/objectives/{module}/{metric}      create a new objective revision
+  GET  /api/pilotage/alerts                            deduplicated operational alerts
+  PATCH /api/pilotage/alerts/{id}                      assign or change alert status
+  GET  /api/pilotage/reports/{day|week|month}          JSON or CSV management report
   GET  /api/pilotage/health, /health                   health probes
 ```
 
