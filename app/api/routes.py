@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from datetime import date as date_type, timedelta
 
 from app.collector import store
-from app.collector.collector import DAILY_KIND, FINANCE_KIND, backfill_module, business_timezone, business_today, collect_daily_summary, collect_finance_summary
+from app.collector.collector import DAILY_KIND, FINANCE_KIND, backfill_finance_module, backfill_module, business_timezone, business_today, collect_daily_summary, collect_finance_summary
 from app.collector.rollups import aggregate_periods
 from app.core.auth import COLLECT_ROLES, FINANCE_ROLES, PilotagePrincipal, get_principal, require_module_access, require_role
 from app.core.request_context import get_request_id
@@ -185,12 +185,47 @@ def module_finance_summary(
     return {"summary": record["payload"], "revision": record["revision"], "collected_at": record["collected_at"]}
 
 
+@router.get("/finance/overview")
+def finance_overview(
+    date: str | None = Query(default=None),
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    require_role(principal, FINANCE_ROLES)
+    diddisend = store.latest_summary("diddisend", FINANCE_KIND, summary_date=date)
+    diddipay = store.latest_summary("diddipay", DAILY_KIND, summary_date=date)
+    resolved_date = date or (diddisend or diddipay or {}).get("summary_date")
+    _audit_financial_access(principal, "finance-overview")
+    return {
+        "date": resolved_date,
+        "timezone": str(business_timezone()),
+        "economics": diddisend["payload"] if diddisend else None,
+        "payments": diddipay["payload"] if diddipay else None,
+        "reconciliation": {
+            "status": "unavailable",
+            "reason": "diddipay_service_breakdown_missing",
+            "message": "DiddiPay totals are global and cannot yet be attributed safely to DiddiSend.",
+        },
+    }
+
+
 @router.post("/sources/{module}/collect-finance")
 async def trigger_finance_collection(module: str, principal: PilotagePrincipal = Depends(get_principal)) -> dict:
     _known_module(module)
     require_role(principal, COLLECT_ROLES & FINANCE_ROLES)
     require_module_access(principal, module)
     return {"result": await collect_finance_summary(module), "request_id": get_request_id()}
+
+
+@router.post("/sources/{module}/backfill-finance")
+async def trigger_finance_backfill(
+    module: str,
+    days: int = Query(default=30, ge=1, le=90),
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    _known_module(module)
+    require_role(principal, COLLECT_ROLES & FINANCE_ROLES)
+    require_module_access(principal, module)
+    return {"result": await backfill_finance_module(module, days=days), "request_id": get_request_id()}
 
 
 @router.get("/sources")

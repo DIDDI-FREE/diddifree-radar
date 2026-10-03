@@ -3,7 +3,7 @@ import unittest
 
 from fastapi.testclient import TestClient
 
-from app.collector.collector import collect_finance_summary
+from app.collector.collector import backfill_finance_module, collect_finance_summary
 from app.core.db import execute, init_db
 from app.main import app
 from tests.test_api import DG_HEADERS, OPERATIONS_HEADERS
@@ -50,6 +50,25 @@ class FinanceSummaryTests(unittest.TestCase):
         asyncio.run(collect_finance_summary("diddisend", date="2026-10-03", client=FakeFinanceClient()))
         response = self.client.get("/api/pilotage/modules/diddisend/finance-summary", headers=OPERATIONS_HEADERS)
         self.assertEqual(response.status_code, 403)
+
+    def test_finance_overview_keeps_economics_and_payments_separate(self):
+        asyncio.run(collect_finance_summary("diddisend", date="2026-10-03", client=FakeFinanceClient()))
+        response = self.client.get("/api/pilotage/finance/overview?date=2026-10-03", headers=DG_HEADERS)
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["economics"]["module"], "diddisend")
+        self.assertIsNone(body["payments"])
+        self.assertEqual(body["reconciliation"]["reason"], "diddipay_service_breakdown_missing")
+
+    def test_operations_role_cannot_read_finance_overview(self):
+        response = self.client.get("/api/pilotage/finance/overview", headers=OPERATIONS_HEADERS)
+        self.assertEqual(response.status_code, 403)
+
+    def test_finance_backfill_is_rerunnable(self):
+        first = asyncio.run(backfill_finance_module("diddisend", days=3, client=FakeFinanceClient()))
+        second = asyncio.run(backfill_finance_module("diddisend", days=3, client=FakeFinanceClient()))
+        self.assertEqual((first["collected"], first["failed"]), (3, 0))
+        self.assertEqual((second["collected"], second["failed"]), (3, 0))
 
 
 if __name__ == "__main__":

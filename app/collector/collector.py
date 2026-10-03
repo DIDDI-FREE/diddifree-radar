@@ -113,6 +113,22 @@ async def collect_finance_summary(module: str, *, date: str | None = None, clien
     return {"module": module, "date": summary.date.isoformat(), "status": "collected"}
 
 
+async def backfill_finance_module(module: str, *, days: int, client: PilotageSourceClient | None = None) -> dict:
+    days = max(1, min(days, 90))
+    client = client or PilotageSourceClient(module)
+    today = date_type.fromisoformat(business_today())
+    collected = failed = 0
+    last_code = None
+    for offset in range(days, 0, -1):
+        result = await collect_finance_summary(module, date=(today - timedelta(days=offset)).isoformat(), client=client)
+        if result["status"] == "collected":
+            collected += 1
+        else:
+            failed += 1
+            last_code = result.get("code")
+    return {"module": module, "kind": FINANCE_KIND, "days": days, "collected": collected, "failed": failed, "last_error_code": last_code}
+
+
 async def collect_all(*, date: str | None = None) -> list[dict]:
     results = await asyncio.gather(
         *(collect_daily_summary(module, date=date) for module in enabled_modules()),

@@ -89,7 +89,7 @@ let session = null;
 let refreshTimer = null;
 let tab = sessionStorage.getItem("pilotage_tab") || "day";
 let selectedDate = null; // ISO; set from overview on load
-const cache = { overview: null, sources: null, histories: {}, weeks: {}, months: {} };
+const cache = { overview: null, sources: null, finance: null, histories: {}, weeks: {}, months: {} };
 
 function token() { return sessionStorage.getItem("pilotage_token") || ""; }
 
@@ -195,6 +195,7 @@ async function loadAll() {
   const [overview, sources] = await Promise.all([api("/overview"), api("/sources")]);
   cache.overview = overview;
   cache.sources = sources;
+  cache.finance = session && ["dg_global", "finance_admin"].includes(session.role) ? await api("/finance/overview").catch(() => null) : null;
   if (!selectedDate) selectedDate = overview.date;
   await Promise.all(overview.modules.map(async block => {
     const m = block.module;
@@ -335,6 +336,21 @@ function renderPeriod(period) {
     '<div class="grid">' + cache.overview.modules.map(b => periodCard(b, source[b.module], period)).join("") + "</div>";
 }
 
+function financeBlock(title, summary) {
+  if (!summary) return '<div class="card"><h3>' + esc(title) + '</h3><div class="empty">Données indisponibles.</div></div>';
+  const rows = (summary.metrics || []).map(metric => '<div class="metric"><span class="name" title="' + esc(metric.description || "") + '">' +
+    esc(metric.label || metric.name) + '</span><span class="value">' + fmtNum(metric.value, metric.unit) + '</span></div>').join("");
+  return '<div class="card"><h3>' + esc(title) + '</h3>' + rows + '</div>';
+}
+
+function renderFinance() {
+  const finance = cache.finance;
+  if (!finance) return '<div class="card"><div class="empty">Vue financière indisponible.</div></div>';
+  const reconciliation = finance.reconciliation || {};
+  return '<div class="wide-card"><h3>Rapprochement</h3><div class="error-line">' + esc(reconciliation.message || reconciliation.status) + '</div></div>' +
+    '<div class="grid">' + financeBlock("Économie DiddiSend", finance.economics) + financeBlock("Flux DiddiPay", finance.payments) + '</div>';
+}
+
 /* ---------- sources ---------- */
 function sourcesTable(items) {
   const rows = items.map(s =>
@@ -348,6 +364,7 @@ function sourcesTable(items) {
 /* ---------- shell ---------- */
 function tabsBar() {
   const defs = [["day", "Jour"], ["week", "Semaine"], ["month", "Mois"]];
+  if (session && ["dg_global", "finance_admin"].includes(session.role)) defs.push(["finance", "Finance"]);
   return '<div class="tabs">' + defs.map(([id, label]) =>
     '<button class="ghost' + (tab === id ? " on" : "") + '" data-tab="' + id + '">' + label + "</button>").join("") + "</div>";
 }
@@ -365,7 +382,7 @@ function statusBand() {
 
 function renderDashboard() {
   const app = document.getElementById("app");
-  const body = tab === "day" ? renderDay() : renderPeriod(tab);
+  const body = tab === "day" ? renderDay() : tab === "finance" ? renderFinance() : renderPeriod(tab);
   app.innerHTML = statusBand() + tabsBar() + body + sourcesTable(cache.sources.items);
   app.querySelectorAll("[data-tab]").forEach(btn => {
     btn.onclick = () => { tab = btn.dataset.tab; sessionStorage.setItem("pilotage_tab", tab); renderDashboard(); };

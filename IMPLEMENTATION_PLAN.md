@@ -243,6 +243,10 @@ Afficher une journée, une semaine et un mois contenant une journée incomplète
 - collecte et stockage séparés sous le type `finance` ;
 - route Pilotage `GET /api/pilotage/modules/diddisend/finance-summary` réservée aux rôles financiers ;
 - recette staging `200` réussie pour le 2 octobre 2026.
+- backfill financier DiddiSend de cinq jours réussi sans échec ;
+- vue financière séparant économie DiddiSend et flux DiddiPay ;
+- rapprochement marqué indisponible tant que DiddiPay ne fournit pas la dimension par service ;
+- onglet Finance visible uniquement par la Direction générale et la Finance.
 
 ### Modèle financier cible
 

@@ -38,6 +38,17 @@ METRIC_METADATA = {
     "settlements_amount_xof": ("Montant réglé", "Montant des règlements processeur."),
     "payouts_count": ("Versements participants", "Nombre de versements aux participants."),
     "payouts_amount_xof": ("Montant versé aux participants", "Montant versé aux participants."),
+    "gross_delivery_value": ("Valeur brute des livraisons", "Valeur brute comptabilisée par DiddiSend."),
+    "digital_paid_value": ("Livraisons payées en ligne", "Valeur DiddiSend réglée par paiement numérique."),
+    "cash_collected": ("Espèces collectées", "Espèces déclarées comme collectées par les coursiers."),
+    "cash_to_remit": ("Espèces à reverser", "Montant attendu des reversements en espèces."),
+    "cash_remitted": ("Espèces reversées", "Montant effectivement reversé."),
+    "cash_outstanding": ("Espèces restant à reverser", "Montant encore dû à la plateforme."),
+    "platform_commission": ("Commission DiddiFree", "Commission attribuée à la plateforme."),
+    "courier_earnings": ("Revenus coursiers", "Revenus attribués aux coursiers."),
+    "partner_share": ("Part partenaires", "Revenus attribués aux partenaires de flotte."),
+    "collection_anomalies": ("Anomalies d'encaissement", "Nombre d'anomalies de collecte détectées."),
+    "overdue_cash_to_remit": ("Reversements en retard", "Montant dont l'échéance de reversement est dépassée."),
 }
 
 DERIVED_METRICS = {
