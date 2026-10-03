@@ -71,6 +71,20 @@ class FinanceSummaryTests(unittest.TestCase):
         self.assertEqual((first["collected"], first["failed"]), (3, 0))
         self.assertEqual((second["collected"], second["failed"]), (3, 0))
 
+    def test_finance_history_and_aggregates_are_available_to_finance(self):
+        asyncio.run(backfill_finance_module("diddisend", days=5, client=FakeFinanceClient()))
+        history = self.client.get("/api/pilotage/modules/diddisend/finance-history?days=7", headers=DG_HEADERS)
+        aggregates = self.client.get("/api/pilotage/modules/diddisend/finance-aggregates?period=week&count=2", headers=DG_HEADERS)
+        self.assertEqual(history.status_code, 200)
+        self.assertEqual(len(history.json()["items"]), 5)
+        self.assertEqual(aggregates.status_code, 200)
+        metrics = [metric for bucket in aggregates.json()["buckets"] for metric in bucket["metrics"]]
+        self.assertTrue(any(metric["name"] == "platform_commission" for metric in metrics))
+
+    def test_finance_history_is_denied_to_operations(self):
+        response = self.client.get("/api/pilotage/modules/diddisend/finance-history", headers=OPERATIONS_HEADERS)
+        self.assertEqual(response.status_code, 403)
+
 
 if __name__ == "__main__":
     unittest.main()

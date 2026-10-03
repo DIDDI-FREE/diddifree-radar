@@ -89,7 +89,7 @@ let session = null;
 let refreshTimer = null;
 let tab = sessionStorage.getItem("pilotage_tab") || "day";
 let selectedDate = null; // ISO; set from overview on load
-const cache = { overview: null, sources: null, finance: null, histories: {}, weeks: {}, months: {} };
+const cache = { overview: null, sources: null, finance: null, financeWeeks: {}, histories: {}, weeks: {}, months: {} };
 
 function token() { return sessionStorage.getItem("pilotage_token") || ""; }
 
@@ -196,6 +196,11 @@ async function loadAll() {
   cache.overview = overview;
   cache.sources = sources;
   cache.finance = session && ["dg_global", "finance_admin"].includes(session.role) ? await api("/finance/overview").catch(() => null) : null;
+  if (cache.finance) {
+    await Promise.all(["diddigo", "diddisend"].map(async module => {
+      cache.financeWeeks[module] = await api("/modules/" + module + "/finance-aggregates?period=week&count=8").catch(() => null);
+    }));
+  }
   if (!selectedDate) selectedDate = overview.date;
   await Promise.all(overview.modules.map(async block => {
     const m = block.module;
@@ -347,10 +352,12 @@ function renderFinance() {
   const finance = cache.finance;
   if (!finance) return '<div class="card"><div class="empty">Vue financière indisponible.</div></div>';
   const reconciliation = finance.reconciliation || {};
+  const blocks = { diddigo: { module: "diddigo", display_name: "DiddiGo" }, diddisend: { module: "diddisend", display_name: "DiddiSend" } };
   return '<div class="wide-card"><h3>Rapprochement</h3><div class="error-line">' + esc(reconciliation.message || reconciliation.status) + '</div></div>' +
     '<div class="grid">' + financeBlock("Économie DiddiGo", finance.economics_by_module && finance.economics_by_module.diddigo) +
     financeBlock("Économie DiddiSend", finance.economics_by_module && finance.economics_by_module.diddisend || finance.economics) +
-    financeBlock("Flux DiddiPay", finance.payments) + '</div>';
+    financeBlock("Flux DiddiPay", finance.payments) + '</div><h2>Tendances financières hebdomadaires</h2><div class="grid">' +
+    periodCard(blocks.diddigo, cache.financeWeeks.diddigo, "week") + periodCard(blocks.diddisend, cache.financeWeeks.diddisend, "week") + '</div>';
 }
 
 /* ---------- sources ---------- */

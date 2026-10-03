@@ -136,13 +136,13 @@ def _bucket_bounds(period: str, anchor: date, offset: int) -> tuple[date, date, 
     return start, end, start.strftime("%Y-%m")
 
 
-def aggregate_periods(module: str, *, period: str, count: int, today: date) -> list[dict]:
+def aggregate_periods(module: str, *, period: str, count: int, today: date, kind: str = DAILY_KIND) -> list[dict]:
     """Return the last ``count`` buckets (oldest first), current one partial."""
     if period not in {"week", "month"}:
         raise ValueError("period must be week or month")
     count = max(1, min(count, 12))
     oldest_start, _, _ = _bucket_bounds(period, today, count - 1)
-    records = store.summaries_range(module, DAILY_KIND, oldest_start.isoformat(), today.isoformat())
+    records = store.summaries_range(module, kind, oldest_start.isoformat(), today.isoformat())
     by_date = {record["summary_date"]: record for record in records}
 
     buckets: list[dict] = []

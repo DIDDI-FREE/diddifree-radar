@@ -185,6 +185,45 @@ def module_finance_summary(
     return {"summary": record["payload"], "revision": record["revision"], "collected_at": record["collected_at"]}
 
 
+@router.get("/modules/{module}/finance-history")
+def module_finance_history(
+    module: str,
+    days: int = Query(default=30, ge=1, le=90),
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    _known_module(module)
+    require_role(principal, FINANCE_ROLES)
+    require_module_access(principal, module)
+    today = date_type.fromisoformat(business_today())
+    start = (today - timedelta(days=days - 1)).isoformat()
+    records = store.summaries_range(module, FINANCE_KIND, start, today.isoformat())
+    _audit_financial_access(principal, "finance-history", module)
+    return {
+        "module": module,
+        "from": start,
+        "to": today.isoformat(),
+        "items": [
+            {"date": item["summary_date"], "is_final": bool(item["is_final"]), "revision": item["revision"], "metrics": item["payload"].get("metrics", [])}
+            for item in records
+        ],
+    }
+
+
+@router.get("/modules/{module}/finance-aggregates")
+def module_finance_aggregates(
+    module: str,
+    period: str = Query(default="week", pattern="^(week|month)$"),
+    count: int = Query(default=8, ge=1, le=12),
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    _known_module(module)
+    require_role(principal, FINANCE_ROLES)
+    require_module_access(principal, module)
+    _audit_financial_access(principal, "finance-aggregates", module)
+    today = date_type.fromisoformat(business_today())
+    return {"module": module, "period": period, "buckets": aggregate_periods(module, period=period, count=count, today=today, kind=FINANCE_KIND)}
+
+
 @router.get("/finance/overview")
 def finance_overview(
     date: str | None = Query(default=None),

@@ -27,8 +27,8 @@ Pilotage reste en lecture seule. Les opérations sensibles sont réalisées dans
 | Sprint 0 | terminé | Contrats, routes, scopes et KPI identifiés |
 | Sprint 1 | terminé | DiddiFreeID, DiddiGo, DiddiSend et DiddiPay collectés en staging |
 | Sprint 2 | terminé | Agrégations, ratios, corrections et backfill staging validés |
-| Sprint 3 | en cours | Écran Direction générale, droits et API réutilisable |
-| Sprint 4 | en cours | Première collecte financière DiddiSend validée en staging |
+| Sprint 3 | terminé | Écran Direction générale, droits et API réutilisable |
+| Sprint 4 | terminé côté Pilotage | Collecte, historique et vues livrés ; rapprochement dépend de deux contrats externes |
 | Sprints 5 à 7 | à faire | Granularité, alertes et déploiement |
 
 ### Fondation déjà disponible
@@ -159,7 +159,7 @@ Afficher une journée, une semaine et un mois contenant une journée incomplète
 
 ## Sprint 3 — écran Direction générale et droits
 
-**État : en cours**
+**État : terminé**
 
 **But :** rendre Pilotage compréhensible en moins d'une minute.
 
@@ -232,7 +232,7 @@ Afficher une journée, une semaine et un mois contenant une journée incomplète
 
 ## Sprint 4 — revenus et rapprochement financier
 
-**État : en cours**
+**État : terminé côté Pilotage, dépendances externes ouvertes**
 
 **But :** séparer clairement ce que paie le client, ce que reçoit DiddiFree et ce qui revient aux participants.
 
@@ -251,6 +251,8 @@ Afficher une journée, une semaine et un mois contenant une journée incomplète
 - audit confirmé : wallets métiers DiddiGo/DiddiSend actifs, wallet DiddiPay legacy ;
 - découpage DiddiPay réalisable via `PaymentIntent.client_id`, mais absent de son agrégat actuel ;
 - contrat financier DiddiGo encore incomplet malgré une route disponible.
+- historique et agrégats financiers semaine/mois disponibles ;
+- bilan détaillé consigné dans `docs/SPRINT_REPORTS.md`.
 
 ### Modèle financier cible
 
@@ -430,13 +432,11 @@ Chaque alerte possède une gravité, un propriétaire, un statut, une échéance
 
 ## Ordre d'exécution immédiat
 
-1. Sprint 2 : corriger les agrégations.
-2. Backfill des cinq derniers jours.
-3. Sprint 3 : finaliser l'écran DG et les droits.
-4. Sprint 4 : revenus et rapprochement.
-5. Sprint 5 : ventilations et autres modules.
-6. Sprint 6 : objectifs, alertes et rapports.
-7. Sprint 7 : déploiement et recette.
+1. Sprint 5 : définir et intégrer les ventilations agrégées.
+2. Préparer DiddiFood et DiddiMap comme nouvelles sources.
+3. Sprint 6 : objectifs, alertes et rapports.
+4. Sprint 7 : déploiement et recette.
+5. Brancher les compléments DiddiPay et DiddiGo dès livraison externe.
 
 ## Définition de terminé
 
