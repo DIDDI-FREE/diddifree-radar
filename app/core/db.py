@@ -12,6 +12,7 @@ from psycopg.rows import dict_row
 
 SCHEMA_VERSION = "001_initial"
 SUMMARY_REVISION_MIGRATION = "002_summary_revisions"
+PLANNING_MIGRATION = "003_planning"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS pilotage_users (
@@ -54,11 +55,25 @@ CREATE TABLE IF NOT EXISTS pilotage_financial_access_log (
   module TEXT,
   accessed_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS pilotage_objectives (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  module TEXT NOT NULL,
+  metric TEXT NOT NULL,
+  period TEXT NOT NULL CHECK (period IN ('day', 'month')),
+  period_start TEXT NOT NULL,
+  target_value TEXT NOT NULL,
+  unit TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  changed_by TEXT NOT NULL,
+  changed_at TEXT NOT NULL,
+  UNIQUE (module, metric, period, period_start, revision)
+);
 CREATE TABLE IF NOT EXISTS schema_migrations (
   id TEXT PRIMARY KEY,
   applied_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_pilotage_summaries_module_kind ON pilotage_summaries(module, kind, summary_date);
+CREATE INDEX IF NOT EXISTS idx_pilotage_objectives_lookup ON pilotage_objectives(module, metric, period, period_start, revision);
 """
 POSTGRES_SCHEMA = SCHEMA.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "BIGSERIAL PRIMARY KEY")
 
@@ -147,4 +162,8 @@ def init_db() -> None:
         connection.execute(
             "INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?) ON CONFLICT (id) DO NOTHING",
             (SUMMARY_REVISION_MIGRATION, utc_now_iso()),
+        )
+        connection.execute(
+            "INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?) ON CONFLICT (id) DO NOTHING",
+            (PLANNING_MIGRATION, utc_now_iso()),
         )

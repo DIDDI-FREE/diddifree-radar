@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
+from decimal import Decimal
 
 from datetime import date as date_type, timedelta
 
@@ -13,10 +15,18 @@ from app.collector.breakdown_rollups import aggregate_breakdowns
 from app.core.auth import COLLECT_ROLES, FINANCE_ROLES, PilotagePrincipal, get_principal, require_module_access, require_role
 from app.core.request_context import get_request_id
 from app.sources.catalog import PILOTAGE_SOURCES, enabled_modules, get_source
+from app.planning import list_objectives, objective_history, set_objective
 
 router = APIRouter(prefix="/pilotage", tags=["pilotage"])
 
 _DATE_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+class ObjectiveInput(BaseModel):
+    period: str = Field(pattern="^(day|month)$")
+    period_start: date_type
+    target_value: Decimal = Field(gt=0)
+    unit: str = Field(min_length=1, max_length=20)
 
 
 def _known_module(module: str) -> str:
@@ -45,6 +55,58 @@ def _visible_payload(payload: dict | None, principal: PilotagePrincipal) -> dict
 def _audit_financial_access(principal: PilotagePrincipal, resource: str, module: str | None = None) -> None:
     if principal.role in FINANCE_ROLES:
         store.record_financial_access(principal.user_id, principal.role, resource, module)
+
+
+@router.put("/objectives/{module}/{metric}")
+def write_objective(
+    module: str,
+    metric: str,
+    payload: ObjectiveInput,
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    _known_module(module)
+    require_module_access(principal, module)
+    require_role(principal, {"dg_global", "finance_admin", "operations_manager"})
+    if payload.unit.upper() == "XOF":
+        require_role(principal, FINANCE_ROLES)
+        _audit_financial_access(principal, "objective-write", module)
+    start = payload.period_start.isoformat()
+    if payload.period == "month" and payload.period_start.day != 1:
+        raise HTTPException(status_code=422, detail={"error": {"code": "invalid_period_start", "message": "A monthly objective must start on the first day of the month"}})
+    return {"objective": set_objective(module=module, metric=metric, period=payload.period, period_start=start, target_value=payload.target_value, unit=payload.unit, changed_by=principal.user_id)}
+
+
+@router.get("/objectives")
+def read_objectives(
+    module: str | None = None,
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    if module:
+        _known_module(module)
+        require_module_access(principal, module)
+    items = [item for item in list_objectives(module) if principal.can_view(item["module"])]
+    if principal.role not in FINANCE_ROLES:
+        items = [item for item in items if item["unit"].upper() != "XOF"]
+    else:
+        _audit_financial_access(principal, "objectives", module)
+    return {"items": items}
+
+
+@router.get("/objectives/{module}/{metric}/history")
+def read_objective_history(
+    module: str,
+    metric: str,
+    period: str = Query(pattern="^(day|month)$"),
+    period_start: date_type = Query(),
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    _known_module(module)
+    require_module_access(principal, module)
+    items = objective_history(module, metric, period, period_start.isoformat())
+    if items and items[0]["unit"].upper() == "XOF":
+        require_role(principal, FINANCE_ROLES)
+        _audit_financial_access(principal, "objective-history", module)
+    return {"items": items}
 
 
 def _module_block(module: str, principal: PilotagePrincipal) -> dict:
