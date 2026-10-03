@@ -15,6 +15,31 @@ IDENTITY_AGGREGATIONS = {
     "monthly_active_users": "last",
 }
 
+METRIC_METADATA = {
+    "users_total": ("Utilisateurs totaux", "Nombre total de comptes créés."),
+    "users_registered": ("Nouveaux utilisateurs", "Comptes créés pendant la journée."),
+    "users_verified": ("Utilisateurs vérifiés", "Comptes vérifiés."),
+    "users_active": ("Utilisateurs actifs", "Comptes considérés actifs par DiddiFreeID."),
+    "daily_active_users": ("Utilisateurs actifs du jour", "Utilisateurs distincts actifs pendant la journée."),
+    "monthly_active_users": ("Utilisateurs actifs sur 30 jours", "Utilisateurs distincts actifs sur la fenêtre mensuelle."),
+    "rides_requested": ("Courses demandées", "Demandes de course créées pendant la journée."),
+    "rides_completed": ("Courses terminées", "Courses terminées pendant la journée."),
+    "completed_fare_total_xof": ("Montant des courses terminées", "Somme finale des courses terminées."),
+    "deliveries_requested": ("Livraisons demandées", "Demandes de livraison créées pendant la journée."),
+    "deliveries_completed": ("Livraisons terminées", "Livraisons terminées pendant la journée."),
+    "completed_delivery_value": ("Valeur des livraisons terminées", "Valeur finale des livraisons terminées."),
+    "confirmed_payments_count": ("Paiements confirmés", "Nombre de paiements confirmés par DiddiPay."),
+    "confirmed_payments_amount_xof": ("Montant des paiements confirmés", "Montant confirmé par DiddiPay."),
+    "confirmed_refunds_count": ("Remboursements confirmés", "Nombre de remboursements confirmés."),
+    "confirmed_refunds_amount_xof": ("Montant remboursé", "Montant des remboursements confirmés."),
+    "processor_fees_amount_xof": ("Frais processeur", "Frais du processeur de paiement."),
+    "net_expected_delta_xof": ("Net attendu", "Variation nette attendue après remboursements et frais."),
+    "settlements_count": ("Règlements reçus", "Nombre de règlements processeur enregistrés."),
+    "settlements_amount_xof": ("Montant réglé", "Montant des règlements processeur."),
+    "payouts_count": ("Versements participants", "Nombre de versements aux participants."),
+    "payouts_amount_xof": ("Montant versé aux participants", "Montant versé aux participants."),
+}
+
 DERIVED_METRICS = {
     "identity": [
         {
@@ -111,6 +136,10 @@ def normalize_daily_summary(module: str, payload: dict) -> dict:
         if not isinstance(metric, dict):
             continue
         name = metric.get("name")
+        metadata = METRIC_METADATA.get(name)
+        if metadata:
+            metric.setdefault("label", metadata[0])
+            metric.setdefault("description", metadata[1])
         if module == "identity":
             metric.setdefault("aggregation", IDENTITY_AGGREGATIONS.get(name, "last"))
         else:

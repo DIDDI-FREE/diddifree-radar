@@ -57,6 +57,10 @@
   .strip .item .k { color: var(--muted); font-size: 11.5px; }
   .strip .item .v { font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
   .partial-note { color: var(--stale); font-size: 11px; }
+  .status-band { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .status-band .item { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .status-band .k { color: var(--muted); font-size: 11px; }
+  .status-band .v { font-size: 16px; font-weight: 700; }
   /* login */
   .login-wrap { max-width: 360px; margin: 10vh auto; }
   .login-wrap .card { padding: 22px; }
@@ -171,6 +175,7 @@ function historyIndex(history) {
     map[item.date] = {};
     (item.metrics || []).forEach(m => { map[item.date][m.name] = m; });
     map[item.date].__is_final = item.is_final;
+    map[item.date].__state = item.state;
   });
   return map;
 }
@@ -214,7 +219,7 @@ function dayCard(block) {
   if (!dayData) {
     rows = '<div class="empty">Aucune donnée pour cette date.</div>';
   } else {
-    rows = Object.keys(dayData).filter(k => k !== "__is_final").map(name => {
+    rows = Object.keys(dayData).filter(k => !k.startsWith("__")).map(name => {
       const metric = dayData[name];
       const prev = prevData ? prevData[name] : null;
       return '<div class="metric"><span class="name">' + esc(metric.label || name) + "</span>" +
@@ -227,7 +232,8 @@ function dayCard(block) {
   const sync = block.freshness && block.freshness.synchronized_at;
   return '<div class="card"><h3>' + esc(block.display_name) + " " + (isToday ? badge(block.freshness) : "") + "</h3>" +
     rows + (isToday ? err : "") +
-    '<div class="meta">' + (isToday ? "Synchronisé : " + (sync ? new Date(sync).toLocaleTimeString("fr-FR") : "—") + " · vs veille · barres : 14 j" : "Journée archivée · vs veille") + "</div></div>";
+    '<div class="meta">' + (isToday ? "Synchronisé : " + (sync ? new Date(sync).toLocaleTimeString("fr-FR") : "—") + " · vs veille · barres : 14 j" :
+      (dayData && dayData.__state === "corrected" ? "Journée corrigée" : "Journée archivée") + " · vs veille") + "</div></div>";
 }
 
 function renderDay() {
@@ -249,7 +255,7 @@ function sumLastDays(history, from, to) {
   for (let d = from; d <= to; d = addDays(d, 1)) {
     const day = idx[d];
     if (!day) continue;
-    Object.keys(day).filter(k => k !== "__is_final").forEach(name => {
+    Object.keys(day).filter(k => !k.startsWith("__")).forEach(name => {
       const metric = day[name];
       const value = numericValue(metric.value);
       const aggregation = metric.aggregation || "sum";
@@ -343,10 +349,21 @@ function tabsBar() {
     '<button class="ghost' + (tab === id ? " on" : "") + '" data-tab="' + id + '">' + label + "</button>").join("") + "</div>";
 }
 
+function statusBand() {
+  const counts = { fresh: 0, stale: 0, unavailable: 0 };
+  (cache.sources.items || []).forEach(source => { counts[source.freshness.status] = (counts[source.freshness.status] || 0) + 1; });
+  const now = new Intl.DateTimeFormat("fr-FR", { timeZone: "Africa/Abidjan", dateStyle: "medium", timeStyle: "short" }).format(new Date());
+  return '<div class="status-band">' +
+    '<div class="item"><div class="k">Heure d’Abidjan</div><div class="v">' + esc(now) + '</div></div>' +
+    '<div class="item"><div class="k">Sources fraîches</div><div class="v" style="color:var(--fresh)">' + counts.fresh + '</div></div>' +
+    '<div class="item"><div class="k">Sources périmées</div><div class="v" style="color:var(--stale)">' + counts.stale + '</div></div>' +
+    '<div class="item"><div class="k">Sources indisponibles</div><div class="v" style="color:var(--unavailable)">' + counts.unavailable + '</div></div></div>';
+}
+
 function renderDashboard() {
   const app = document.getElementById("app");
   const body = tab === "day" ? renderDay() : renderPeriod(tab);
-  app.innerHTML = tabsBar() + body + sourcesTable(cache.sources.items);
+  app.innerHTML = statusBand() + tabsBar() + body + sourcesTable(cache.sources.items);
   app.querySelectorAll("[data-tab]").forEach(btn => {
     btn.onclick = () => { tab = btn.dataset.tab; sessionStorage.setItem("pilotage_tab", tab); renderDashboard(); };
   });

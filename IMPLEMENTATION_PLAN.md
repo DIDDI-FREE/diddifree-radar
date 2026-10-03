@@ -158,7 +158,17 @@ Afficher une journée, une semaine et un mois contenant une journée incomplète
 
 ## Sprint 3 — écran Direction générale et droits
 
+**État : en cours**
+
 **But :** rendre Pilotage compréhensible en moins d'une minute.
+
+### Livré dans le premier lot
+
+- bandeau avec heure d'Abidjan et nombre de sources par état ;
+- libellés et descriptions métier pour les KPI principaux ;
+- masquage des montants XOF pour les rôles non financiers ;
+- filtrage de la page des sources selon les modules assignés ;
+- indication des journées corrigées dans l'historique.
 
 ### Écran principal
 

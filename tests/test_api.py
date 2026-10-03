@@ -11,6 +11,7 @@ from tests.test_contracts import GUIDE_EXAMPLE
 
 DG_HEADERS = {"X-User-Id": "dg-1", "X-Role": "dg_global"}
 MODULE_MANAGER_HEADERS = {"X-User-Id": "mm-1", "X-Role": "module_manager", "X-Modules": "diddigo"}
+OPERATIONS_HEADERS = {"X-User-Id": "ops-1", "X-Role": "operations_manager", "X-Modules": "global"}
 
 
 class ApiTests(unittest.TestCase):
@@ -71,6 +72,24 @@ class ApiTests(unittest.TestCase):
         items = {item["module"]: item for item in response.json()["items"]}
         self.assertEqual(items["diddigo"]["freshness"]["status"], "fresh")
         self.assertEqual(items["diddipay"]["consecutive_failures"], 0)
+
+    def test_sources_respects_assigned_modules(self):
+        response = self.client.get("/api/pilotage/sources", headers=MODULE_MANAGER_HEADERS)
+        self.assertEqual([item["module"] for item in response.json()["items"]], ["diddigo"])
+
+    def test_financial_amounts_are_masked_outside_finance_roles(self):
+        payload = {
+            **GUIDE_EXAMPLE,
+            "metrics": [
+                {"name": "rides_completed", "value": 8, "unit": "count"},
+                {"name": "completed_fare_total_xof", "value": 24000, "unit": "XOF"},
+            ],
+        }
+        asyncio.run(collect_daily_summary("diddigo", client=FakeClient(result=payload)))
+        operations = self.client.get("/api/pilotage/modules/diddigo/daily-summary", headers=OPERATIONS_HEADERS).json()
+        self.assertEqual([metric["name"] for metric in operations["summary"]["metrics"]], ["rides_completed"])
+        finance = self.client.get("/api/pilotage/modules/diddigo/daily-summary", headers=DG_HEADERS).json()
+        self.assertIn("completed_fare_total_xof", [metric["name"] for metric in finance["summary"]["metrics"]])
 
     def test_collect_trigger_requires_role(self):
         audit_headers = {"X-User-Id": "aud-1", "X-Role": "audit_read"}

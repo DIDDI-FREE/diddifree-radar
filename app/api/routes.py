@@ -9,7 +9,7 @@ from datetime import date as date_type, timedelta
 from app.collector import store
 from app.collector.collector import DAILY_KIND, backfill_module, business_timezone, business_today, collect_daily_summary
 from app.collector.rollups import aggregate_periods
-from app.core.auth import COLLECT_ROLES, PilotagePrincipal, get_principal, require_module_access, require_role
+from app.core.auth import COLLECT_ROLES, FINANCE_ROLES, PilotagePrincipal, get_principal, require_module_access, require_role
 from app.core.request_context import get_request_id
 from app.sources.catalog import PILOTAGE_SOURCES, enabled_modules, get_source
 
@@ -27,14 +27,28 @@ def _known_module(module: str) -> str:
     return module
 
 
-def _module_block(module: str) -> dict:
+def _visible_metrics(metrics: list[dict], principal: PilotagePrincipal) -> list[dict]:
+    if principal.role in FINANCE_ROLES:
+        return metrics
+    return [metric for metric in metrics if str(metric.get("unit", "")).upper() != "XOF"]
+
+
+def _visible_payload(payload: dict | None, principal: PilotagePrincipal) -> dict | None:
+    if payload is None:
+        return None
+    visible = dict(payload)
+    visible["metrics"] = _visible_metrics(payload.get("metrics", []), principal)
+    return visible
+
+
+def _module_block(module: str, principal: PilotagePrincipal) -> dict:
     record = store.latest_summary(module, DAILY_KIND)
     state = store.source_state(module, DAILY_KIND)
     freshness = store.compute_freshness(module, DAILY_KIND, source_updated_at=record["calculated_at"] if record else None)
     block = {
         "module": module,
         "display_name": get_source(module).display_name,
-        "summary": record["payload"] if record else None,
+        "summary": _visible_payload(record["payload"], principal) if record else None,
         "freshness": freshness.model_dump(mode="json"),
         "collected_at": record["collected_at"] if record else None,
         "revision": record["revision"] if record else None,
@@ -56,7 +70,7 @@ def overview(principal: PilotagePrincipal = Depends(get_principal)) -> dict:
         "contract_version": "pilotage.v1",
         "date": business_today(),
         "timezone": str(business_timezone()),
-        "modules": [_module_block(module) for module in modules],
+        "modules": [_module_block(module, principal) for module in modules],
     }
 
 
@@ -88,7 +102,7 @@ def module_daily_summary(
             },
         )
     return {
-        "summary": record["payload"],
+        "summary": _visible_payload(record["payload"], principal),
         "freshness": freshness.model_dump(mode="json"),
         "revision": record["revision"],
         "first_collected_at": record["first_collected_at"],
@@ -115,7 +129,7 @@ def module_history(
             {
                 "date": record["summary_date"],
                 "is_final": bool(record["is_final"]),
-                "metrics": record["payload"].get("metrics", []),
+                "metrics": _visible_metrics(record["payload"].get("metrics", []), principal),
                 "revision": record["revision"],
                 "state": "corrected" if record["revision"] > 1 else ("final" if record["is_final"] else "provisional"),
                 "first_collected_at": record["first_collected_at"],
@@ -139,7 +153,10 @@ def module_aggregates(
     return {
         "module": module,
         "period": period,
-        "buckets": aggregate_periods(module, period=period, count=count, today=today),
+        "buckets": [
+            {**bucket, "metrics": _visible_metrics(bucket.get("metrics", []), principal)}
+            for bucket in aggregate_periods(module, period=period, count=count, today=today)
+        ],
     }
 
 
@@ -148,6 +165,8 @@ def sources(principal: PilotagePrincipal = Depends(get_principal)) -> dict:
     states = {(state["module"], state["kind"]): state for state in store.all_source_states()}
     items = []
     for module in enabled_modules():
+        if not principal.can_view(module):
+            continue
         state = states.get((module, DAILY_KIND))
         freshness = store.compute_freshness(module, DAILY_KIND)
         items.append(
