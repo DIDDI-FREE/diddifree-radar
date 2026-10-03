@@ -8,6 +8,8 @@
    Utiliser `PILOTAGE_OIDC_ISSUER=diddifree-id`; les jetons humains n'ont pas
    d'audience. Définir le périmètre des consommateurs S2S dans
    `PILOTAGE_TRUSTED_SERVICE_MODULES_JSON`.
+   Le port hôte par défaut est `38090`; il reste modifiable avec
+   `PILOTAGE_HTTP_PORT` si ce port est déjà utilisé sur le serveur.
 4. Valider la composition :
 
    ```bash

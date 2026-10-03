@@ -84,7 +84,7 @@ services:
       context: .
     restart: unless-stopped
     ports:
-      - "${PILOTAGE_HTTP_PORT:-8090}:8000"
+      - "${PILOTAGE_HTTP_PORT:-38090}:8000"
     environment:
       <<: *pilotage-runtime
     depends_on:
