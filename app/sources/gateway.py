@@ -61,9 +61,14 @@ class SourceGateway:
                     scope=scope or self.source.scope(),
                     audience=self.source.audience(),
                 )
+            except httpx.HTTPStatusError as error:
+                status = error.response.status_code
+                code = f"token_endpoint_rejected_{status}"
+                log_json({"event": "source_error", "source": self.source.key, "path": path, "category": code, "status_code": status})
+                raise SourceUnavailable(self.source.key, code, "service token endpoint rejected the client credentials", status_code=status) from error
             except httpx.HTTPError as error:
-                log_json({"event": "source_error", "source": self.source.key, "path": path, "category": "token_endpoint_failure", "error": str(error)})
-                raise SourceUnavailable(self.source.key, "token_endpoint_failure", "service token endpoint rejected or unavailable") from error
+                log_json({"event": "source_error", "source": self.source.key, "path": path, "category": "token_endpoint_unavailable", "error_type": type(error).__name__})
+                raise SourceUnavailable(self.source.key, "token_endpoint_unavailable", "service token endpoint is unavailable") from error
             if not token:
                 log_json({"event": "source_error", "source": self.source.key, "path": path, "category": "credential_missing"})
                 raise SourceUnavailable(self.source.key, "credential_missing", "service credential missing")
