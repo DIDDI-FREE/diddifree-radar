@@ -116,3 +116,31 @@ rencontrés, reste côté Pilotage et reste externe.
 - DiddiMap : fournir le dépôt ou le contrat API et l'accès staging ;
 - DiddiGo et DiddiSend : exposer les montants attribués, payés et dus par catégorie de participant si cette vue est souhaitée ;
 - renouveler les secrets DiddiGo et DiddiSend avant la production, comme déjà planifié.
+
+## Sprint 7 — collecte continue et écran d'accueil
+
+### Réalisé
+
+- collecte automatique des résumés quotidiens, finances et ventilations DiddiGo/DiddiSend ;
+- cadence indépendante et configurable, fixée à 60 secondes par défaut ;
+- finance et extraits ventilés ajoutés à l'accueil et à `GET /api/pilotage/overview` ;
+- couverture par module exposée : résumé, finance et ventilations reçues/attendues ;
+- ventilations détaillées disponibles dans l'onglet `Analyses` et par les routes API ;
+- 96 tests automatisés réussis.
+
+### Blocages rencontrés
+
+- aucun blocage de code pour DiddiGo et DiddiSend ;
+- la recette authentifiée de la nouvelle couverture dépend du redéploiement staging.
+
+### Reste côté Pilotage
+
+- redéployer le dernier commit puis contrôler que la couverture DiddiGo et DiddiSend atteint le nombre attendu ;
+- comparer les valeurs affichées à quelques opérations métier connues ;
+- terminer la recette des rôles, exports, sauvegardes et alertes d'exploitation.
+
+### Reste externe
+
+- DiddiFood et DiddiMap : fournir les contrats et accès nécessaires ;
+- DiddiPay : fournir la ventilation par module fondée sur `PaymentIntent.client_id` ;
+- effectuer la rotation planifiée des secrets exposés avant la production.

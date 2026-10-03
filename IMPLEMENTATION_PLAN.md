@@ -439,6 +439,10 @@ Chaque alerte possède une gravité, un propriétaire, un statut, une échéance
 - routes métier anonymes protégées par `401` et origines CORS inconnues refusées ;
 - trois exécutions CI consécutives réussies jusqu'au commit `2be4152` ;
 - variables du sprint 6 et authentification S2S propagées aux conteneurs ;
+- collecte automatique toutes les 60 secondes des résumés, finances et ventilations disponibles ;
+- accueil et `GET /api/pilotage/overview` enrichis avec finance, extraits ventilés et couverture reçue/attendue ;
+- onglet `Analyses` et routes API conservés pour les ventilations complètes ;
+- 96 tests automatisés réussis ;
 - scripts de sauvegarde et restauration PostgreSQL ;
 - procédure de déploiement, sauvegarde, restauration, retour arrière et rotation.
 

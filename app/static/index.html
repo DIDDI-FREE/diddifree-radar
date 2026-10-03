@@ -204,6 +204,15 @@ function metricSeries(history, name, lastN) {
   }).filter(Boolean);
 }
 
+const DIMENSION_LABELS = { final_status: "Statuts", payment_method: "Paiements", service_type: "Services", pickup_city: "Villes de départ", participant_category: "Participants" };
+
+function breakdownPreview(payload) {
+  const items = (payload.items || []).slice().sort((a, b) => (numericValue(b.value) || 0) - (numericValue(a.value) || 0)).slice(0, 4);
+  if (!items.length) return "";
+  return '<div class="meta" style="margin-top:10px"><strong>' + esc(DIMENSION_LABELS[payload.dimension] || payload.dimension) + '</strong></div>' +
+    items.map(item => '<div class="metric"><span class="name">' + esc(item.label || item.key) + '</span><span class="value">' + fmtNum(item.value, payload.unit) + '</span></div>').join("");
+}
+
 /* ---------- data loading ---------- */
 async function loadAll() {
   const [overview, sources, objectives, alerts] = await Promise.all([api("/overview"), api("/sources"), api("/objectives"), api("/alerts")]);
@@ -259,8 +268,15 @@ function dayCard(block) {
   const sync = block.freshness && block.freshness.synchronized_at;
   const links = isToday && block.summary && block.summary.deep_links && block.summary.deep_links.length ?
     '<div class="links">' + block.summary.deep_links.map(link => '<a href="' + esc(link.href) + '">' + esc(link.label) + '</a>').join("") + '</div>' : "";
+  const financeRows = isToday && block.finance_summary ? '<div class="meta" style="margin-top:10px"><strong>Finance</strong></div>' +
+    (block.finance_summary.metrics || []).map(metric => '<div class="metric"><span class="name">' + esc(metric.label || metric.name) + '</span><span class="value">' + fmtNum(metric.value, metric.unit) + '</span></div>').join("") : "";
+  const breakdownRows = isToday ? (block.breakdown_highlights || []).map(breakdownPreview).join("") : "";
+  const coverage = block.coverage || {};
+  const coverageText = isToday ? '<div class="meta">Couverture : résumé ' + (coverage.daily_available ? '✓' : '—') +
+    (coverage.finance_expected ? ' · finance ' + (coverage.finance_available ? '✓' : '—') : '') +
+    (coverage.breakdowns_expected ? ' · ventilations ' + Number(coverage.breakdowns_available || 0) + '/' + Number(coverage.breakdowns_expected) : '') + '</div>' : '';
   return '<div class="card"><h3>' + esc(block.display_name) + " " + (isToday ? badge(block.freshness) : "") + "</h3>" +
-    rows + (isToday ? err : "") + links +
+    rows + financeRows + breakdownRows + coverageText + (isToday ? err : "") + links +
     '<div class="meta">' + (isToday ? "Synchronisé : " + (sync ? new Date(sync).toLocaleTimeString("fr-FR") : "—") + " · vs veille · barres : 14 j" :
       (dayData && dayData.__state === "corrected" ? "Journée corrigée" : "Journée archivée") + " · comparaison J-7") + "</div></div>";
 }

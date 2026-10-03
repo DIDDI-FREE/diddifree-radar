@@ -80,6 +80,14 @@ def summaries_range(module: str, kind: str, from_date: str, to_date: str) -> lis
     return records
 
 
+def count_summaries_by_kind_prefix(module: str, kind_prefix: str, summary_date: str) -> int:
+    record = row(
+        "SELECT COUNT(*) AS summary_count FROM pilotage_summaries WHERE module = ? AND kind LIKE ? AND summary_date = ?",
+        (module, f"{kind_prefix}%", summary_date),
+    )
+    return int(record["summary_count"]) if record else 0
+
+
 def record_success(module: str, kind: str) -> None:
     now = utc_now_iso()
     execute(

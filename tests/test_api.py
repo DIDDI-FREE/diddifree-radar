@@ -4,6 +4,7 @@ import unittest
 from fastapi.testclient import TestClient
 
 from app.collector.collector import collect_daily_summary
+from app.collector import store
 from app.core.db import execute, init_db
 from app.main import app
 from tests.test_collector import FakeClient
@@ -44,6 +45,24 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(blocks["diddigo"]["summary"]["metrics"][0]["value"], 1000)
         self.assertEqual(blocks["diddisend"]["freshness"]["status"], "unavailable")
         self.assertIsNone(blocks["diddisend"]["summary"])
+
+    def test_overview_includes_finance_and_breakdown_highlights_for_dg(self):
+        self._collect_diddigo()
+        store.save_summary("diddigo", "finance", "2026-09-23", {**GUIDE_EXAMPLE, "metrics": [{"name": "platform_commission", "value": 1200, "unit": "XOF"}]}, "2026-09-23T12:00:00Z", True)
+        store.save_summary("diddigo", "breakdown:payment_method:rides_completed", "2026-09-23", {"module": "diddigo", "date": "2026-09-23", "dimension": "payment_method", "metric": "rides_completed", "unit": "count", "total": 8, "items": [{"key": "cash", "label": "Espèces", "value": 8}]}, "2026-09-23T12:00:00Z", True)
+        block = next(item for item in self.client.get("/api/pilotage/overview", headers=DG_HEADERS).json()["modules"] if item["module"] == "diddigo")
+        self.assertEqual(block["finance_summary"]["metrics"][0]["name"], "platform_commission")
+        self.assertEqual(block["breakdown_highlights"][0]["dimension"], "payment_method")
+        self.assertTrue(block["coverage"]["daily_available"])
+        self.assertTrue(block["coverage"]["finance_available"])
+        self.assertEqual(block["coverage"]["breakdowns_available"], 1)
+        self.assertGreater(block["coverage"]["breakdowns_expected"], 1)
+        self.assertFalse(block["coverage"]["complete"])
+
+    def test_overview_hides_finance_from_operations(self):
+        self._collect_diddigo()
+        block = next(item for item in self.client.get("/api/pilotage/overview", headers=OPERATIONS_HEADERS).json()["modules"] if item["module"] == "diddigo")
+        self.assertIsNone(block["finance_summary"])
 
     def test_module_manager_sees_only_their_module(self):
         response = self.client.get("/api/pilotage/overview", headers=MODULE_MANAGER_HEADERS)

@@ -9,7 +9,7 @@ from decimal import Decimal
 from datetime import date as date_type, datetime, timedelta
 
 from app.collector import store
-from app.collector.collector import DAILY_KIND, FINANCE_KIND, backfill_default_breakdowns, backfill_finance_module, backfill_module, breakdown_kind, business_timezone, business_today, collect_breakdown, collect_daily_summary, collect_default_breakdowns, collect_finance_summary
+from app.collector.collector import BREAKDOWN_MATRIX, DAILY_KIND, FINANCE_KIND, backfill_default_breakdowns, backfill_finance_module, backfill_module, breakdown_kind, business_timezone, business_today, collect_breakdown, collect_daily_summary, collect_default_breakdowns, collect_finance_summary
 from app.collector.rollups import aggregate_periods
 from app.collector.breakdown_rollups import aggregate_breakdowns
 from app.core.auth import COLLECT_ROLES, FINANCE_ROLES, PilotagePrincipal, get_principal, require_module_access, require_role
@@ -22,6 +22,11 @@ from app.reports import build_report, report_csv, report_pdf
 router = APIRouter(prefix="/pilotage", tags=["pilotage"])
 
 _DATE_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+OVERVIEW_BREAKDOWNS = {
+    "diddigo": (("final_status", "rides_requested"), ("payment_method", "rides_completed"), ("service_type", "rides_completed")),
+    "diddisend": (("final_status", "deliveries_requested"), ("payment_method", "deliveries_completed"), ("service_type", "deliveries_completed"), ("pickup_city", "deliveries_completed"), ("participant_category", "deliveries_completed")),
+}
 
 
 class ObjectiveInput(BaseModel):
@@ -193,8 +198,18 @@ def report(
 
 def _module_block(module: str, principal: PilotagePrincipal) -> dict:
     record = store.latest_summary(module, DAILY_KIND)
+    summary_date = record["summary_date"] if record else business_today()
+    stored_finance_record = store.latest_summary(module, FINANCE_KIND, summary_date=summary_date)
+    finance_record = stored_finance_record if principal.role in FINANCE_ROLES else None
+    breakdowns = []
+    for dimension, metric in OVERVIEW_BREAKDOWNS.get(module, ()):
+        breakdown_record = store.latest_summary(module, breakdown_kind(dimension, metric), summary_date=summary_date)
+        if breakdown_record:
+            breakdowns.append(breakdown_record["payload"])
     state = store.source_state(module, DAILY_KIND)
     freshness = store.compute_freshness(module, DAILY_KIND, source_updated_at=record["calculated_at"] if record else None)
+    breakdowns_expected = sum(len(metrics) for metrics in BREAKDOWN_MATRIX.get(module, {}).values())
+    breakdowns_available = store.count_summaries_by_kind_prefix(module, "breakdown:", summary_date)
     block = {
         "module": module,
         "display_name": get_source(module).display_name,
@@ -202,6 +217,19 @@ def _module_block(module: str, principal: PilotagePrincipal) -> dict:
         "freshness": freshness.model_dump(mode="json"),
         "collected_at": record["collected_at"] if record else None,
         "revision": record["revision"] if record else None,
+        "finance_summary": finance_record["payload"] if finance_record else None,
+        "breakdown_highlights": breakdowns,
+        "coverage": {
+            "date": summary_date,
+            "daily_available": record is not None,
+            "finance_expected": module in {"diddigo", "diddisend"},
+            "finance_available": stored_finance_record is not None,
+            "breakdowns_expected": breakdowns_expected,
+            "breakdowns_available": breakdowns_available,
+            "complete": record is not None
+            and (module not in {"diddigo", "diddisend"} or stored_finance_record is not None)
+            and breakdowns_available >= breakdowns_expected,
+        },
     }
     if state and state["last_error_code"]:
         block["last_error"] = {"code": state["last_error_code"], "message": state["last_error_message"]}

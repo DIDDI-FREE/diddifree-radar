@@ -209,9 +209,41 @@ async def collect_all(*, date: str | None = None) -> list[dict]:
     return normalized
 
 
+async def collect_auxiliary(*, date: str | None = None, finance: bool = True, breakdowns: bool = True) -> list[dict]:
+    target_date = date or business_today()
+    jobs = []
+    if finance:
+        jobs.extend(collect_finance_summary(module, date=target_date) for module in ("diddigo", "diddisend") if module in enabled_modules())
+    if breakdowns:
+        jobs.extend(collect_default_breakdowns(module, date=target_date) for module in ("diddigo", "diddisend") if module in enabled_modules())
+    if not jobs:
+        return []
+    results = await asyncio.gather(*jobs, return_exceptions=True)
+    normalized = []
+    for result in results:
+        if isinstance(result, BaseException):
+            log_json({"event": "auxiliary_collection_failed", "error_type": type(result).__name__})
+            normalized.append({"status": "failed", "code": "collector_error"})
+        else:
+            normalized.append(result)
+    return normalized
+
+
 async def run_forever() -> None:
     interval = max(float(os.getenv("PILOTAGE_COLLECT_INTERVAL_SECONDS", "30")), 5.0)
+    finance_interval = max(float(os.getenv("PILOTAGE_FINANCE_COLLECT_INTERVAL_SECONDS", "60")), interval)
+    breakdown_interval = max(float(os.getenv("PILOTAGE_BREAKDOWN_COLLECT_INTERVAL_SECONDS", "60")), interval)
+    last_finance = last_breakdown = 0.0
     log_json({"event": "collector_started", "interval_seconds": interval, "modules": enabled_modules()})
     while True:
         await collect_all()
+        now = asyncio.get_running_loop().time()
+        run_finance = now - last_finance >= finance_interval
+        run_breakdowns = now - last_breakdown >= breakdown_interval
+        if run_finance or run_breakdowns:
+            await collect_auxiliary(finance=run_finance, breakdowns=run_breakdowns)
+            if run_finance:
+                last_finance = now
+            if run_breakdowns:
+                last_breakdown = now
         await asyncio.sleep(interval)

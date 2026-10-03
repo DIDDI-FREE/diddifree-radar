@@ -1,9 +1,10 @@
 import asyncio
 import unittest
 from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, patch
 
 from app.collector import store
-from app.collector.collector import DAILY_KIND, collect_daily_summary
+from app.collector.collector import DAILY_KIND, collect_auxiliary, collect_daily_summary
 from app.core.db import execute, init_db
 from app.sources.gateway import SourceRejected, SourceUnavailable
 from tests.test_contracts import GUIDE_EXAMPLE
@@ -71,6 +72,17 @@ class CollectorTests(unittest.TestCase):
         result = run(collect_daily_summary("diddigo", client=FakeClient(result={"module": "diddigo"})))
         self.assertEqual(result["code"], "contract_invalid")
         self.assertIsNone(store.latest_summary("diddigo", DAILY_KIND))
+
+    def test_auxiliary_collection_refreshes_finance_and_breakdowns(self):
+        with patch("app.collector.collector.enabled_modules", return_value=["diddigo", "diddisend"]), patch(
+            "app.collector.collector.collect_finance_summary", new=AsyncMock(return_value={"status": "collected"})
+        ) as finance, patch(
+            "app.collector.collector.collect_default_breakdowns", new=AsyncMock(return_value={"status": "collected"})
+        ) as breakdowns:
+            results = run(collect_auxiliary(date="2026-10-03"))
+        self.assertEqual(len(results), 4)
+        self.assertEqual(finance.await_count, 2)
+        self.assertEqual(breakdowns.await_count, 2)
 
 
 if __name__ == "__main__":

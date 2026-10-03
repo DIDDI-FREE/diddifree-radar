@@ -15,16 +15,21 @@ Protocol references:
 ## How it works
 
 ```text
-collector (scripts/run_collector.py, every PILOTAGE_COLLECT_INTERVAL_SECONDS)
+collector (scripts/run_collector.py)
   -> PilotageSourceClient per module
        GET {module-specific daily summary path}?date=YYYY-MM-DD
        Authorization: Bearer <S2S token, client_id=pilotage-staging, scope=<module>:pilotage-summary:read>
   -> validate against pilotage.v1 (app/contracts/pilotage.py)
   -> store in pilotage_summaries; state in pilotage_source_state
+  -> refresh daily summaries, finance and supported breakdowns independently
+     (60 seconds by default for each stream)
 
 api (uvicorn app.main:app)
-  GET  /api/pilotage/overview                          all visible module blocks + freshness
+  GET  /api/pilotage/overview                          summaries, finance, breakdown highlights and coverage
   GET  /api/pilotage/modules/{module}/daily-summary    one stored summary
+  GET  /api/pilotage/modules/{module}/breakdown        one stored operational breakdown
+  GET  /api/pilotage/modules/{module}/breakdown-aggregates weekly/monthly breakdowns
+  GET  /api/pilotage/modules/{module}/finance-summary  protected financial view
   GET  /api/pilotage/sources                           collection state per source
   POST /api/pilotage/sources/{module}/collect          manual collection trigger
   GET  /api/pilotage/objectives                        objectives and progress
