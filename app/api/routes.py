@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+import os
+from urllib.parse import urljoin, urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
@@ -62,6 +64,20 @@ def _visible_payload(payload: dict | None, principal: PilotagePrincipal) -> dict
         return None
     visible = dict(payload)
     visible["metrics"] = _visible_metrics(payload.get("metrics", []), principal)
+    visible["deep_links"] = [_absolute_backoffice_link(link) for link in payload.get("deep_links", [])]
+    return visible
+
+
+def _absolute_backoffice_link(link: dict) -> dict:
+    visible = dict(link)
+    href = str(link.get("href") or "").strip()
+    if not href:
+        return visible
+    parsed = urlsplit(href)
+    if parsed.scheme in {"http", "https"}:
+        return visible
+    base_url = os.getenv("PILOTAGE_BACKOFFICE_BASE_URL", "https://admin-staging.diddifree.com").rstrip("/") + "/"
+    visible["href"] = urljoin(base_url, href.lstrip("/"))
     return visible
 
 
@@ -217,7 +233,7 @@ def _module_block(module: str, principal: PilotagePrincipal) -> dict:
         "freshness": freshness.model_dump(mode="json"),
         "collected_at": record["collected_at"] if record else None,
         "revision": record["revision"] if record else None,
-        "finance_summary": finance_record["payload"] if finance_record else None,
+        "finance_summary": _visible_payload(finance_record["payload"], principal) if finance_record else None,
         "breakdown_highlights": breakdowns,
         "coverage": {
             "date": summary_date,
@@ -355,7 +371,7 @@ def module_finance_summary(
     if not record:
         raise HTTPException(status_code=404, detail={"error": {"code": "finance_summary_unavailable", "message": "No finance summary is available"}})
     _audit_financial_access(principal, "finance-summary", module)
-    return {"summary": record["payload"], "revision": record["revision"], "collected_at": record["collected_at"]}
+    return {"summary": _visible_payload(record["payload"], principal), "revision": record["revision"], "collected_at": record["collected_at"]}
 
 
 @router.get("/modules/{module}/finance-history")

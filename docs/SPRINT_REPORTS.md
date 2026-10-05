@@ -126,7 +126,7 @@ rencontrés, reste côté Pilotage et reste externe.
 - finance et extraits ventilés ajoutés à l'accueil et à `GET /api/pilotage/overview` ;
 - couverture par module exposée : résumé, finance et ventilations reçues/attendues ;
 - ventilations détaillées disponibles dans l'onglet `Analyses` et par les routes API ;
-- 97 tests automatisés réussis.
+- 98 tests automatisés réussis.
 
 ### Blocages rencontrés
 
@@ -170,3 +170,25 @@ rencontrés, reste côté Pilotage et reste externe.
 
 - provisionner ou confirmer le client `pilotage-staging-diddifood` des deux côtés ;
 - compléter les contrats DiddiPay, DiddiGo et DiddiFood listés dans l'audit.
+
+## Correctif — liens vers le Backoffice
+
+### Réalisé
+
+- conversion côté API des liens relatifs des modules en URL Backoffice absolues ;
+- domaine configurable avec `PILOTAGE_BACKOFFICE_BASE_URL` ;
+- valeur staging par défaut : `https://admin-staging.diddifree.com` ;
+- ouverture des liens dans un nouvel onglet avec protection `noopener`.
+
+### Blocages rencontrés
+
+- les modules renvoient historiquement des chemins relatifs comme `/backoffice/#...`,
+  qui étaient interprétés sur le domaine `supervision.diddifree.com`.
+
+### Reste côté Pilotage
+
+- redéployer et cliquer sur un lien DiddiGo, DiddiSend ou DiddiFood depuis l'accueil.
+
+### Reste externe
+
+- confirmer le domaine Backoffice de production avant le passage en production.

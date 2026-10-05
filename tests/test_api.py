@@ -1,5 +1,7 @@
 import asyncio
+import os
 import unittest
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -46,12 +48,22 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(blocks["diddisend"]["freshness"]["status"], "unavailable")
         self.assertIsNone(blocks["diddisend"]["summary"])
 
+    def test_overview_makes_backoffice_links_absolute(self):
+        self._collect_diddigo()
+        with patch.dict(os.environ, {"PILOTAGE_BACKOFFICE_BASE_URL": "https://admin.example.test"}):
+            block = next(item for item in self.client.get("/api/pilotage/overview", headers=DG_HEADERS).json()["modules"] if item["module"] == "diddigo")
+        self.assertEqual(
+            block["summary"]["deep_links"][0]["href"],
+            "https://admin.example.test/backoffice/#diddigo-rides",
+        )
+
     def test_overview_includes_finance_and_breakdown_highlights_for_dg(self):
         self._collect_diddigo()
         store.save_summary("diddigo", "finance", "2026-09-23", {**GUIDE_EXAMPLE, "metrics": [{"name": "platform_commission", "value": 1200, "unit": "XOF"}]}, "2026-09-23T12:00:00Z", True)
         store.save_summary("diddigo", "breakdown:payment_method:rides_completed", "2026-09-23", {"module": "diddigo", "date": "2026-09-23", "dimension": "payment_method", "metric": "rides_completed", "unit": "count", "total": 8, "items": [{"key": "cash", "label": "Espèces", "value": 8}]}, "2026-09-23T12:00:00Z", True)
         block = next(item for item in self.client.get("/api/pilotage/overview", headers=DG_HEADERS).json()["modules"] if item["module"] == "diddigo")
         self.assertEqual(block["finance_summary"]["metrics"][0]["name"], "platform_commission")
+        self.assertTrue(block["finance_summary"]["deep_links"][0]["href"].startswith("https://admin-staging.diddifree.com/"))
         self.assertEqual(block["breakdown_highlights"][0]["dimension"], "payment_method")
         self.assertTrue(block["coverage"]["daily_available"])
         self.assertTrue(block["coverage"]["finance_available"])

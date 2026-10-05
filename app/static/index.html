@@ -267,7 +267,7 @@ function dayCard(block) {
   const err = block.last_error ? '<div class="error-line">Dernière erreur : ' + esc(block.last_error.code) + "</div>" : "";
   const sync = block.freshness && block.freshness.synchronized_at;
   const links = isToday && block.summary && block.summary.deep_links && block.summary.deep_links.length ?
-    '<div class="links">' + block.summary.deep_links.map(link => '<a href="' + esc(link.href) + '">' + esc(link.label) + '</a>').join("") + '</div>' : "";
+    '<div class="links">' + block.summary.deep_links.map(link => '<a href="' + esc(link.href) + '" target="_blank" rel="noopener noreferrer">' + esc(link.label) + '</a>').join("") + '</div>' : "";
   const financeRows = isToday && block.finance_summary ? '<div class="meta" style="margin-top:10px"><strong>Finance</strong></div>' +
     (block.finance_summary.metrics || []).map(metric => '<div class="metric"><span class="name">' + esc(metric.label || metric.name) + '</span><span class="value">' + fmtNum(metric.value, metric.unit) + '</span></div>').join("") : "";
   const breakdownRows = isToday ? (block.breakdown_highlights || []).map(breakdownPreview).join("") : "";

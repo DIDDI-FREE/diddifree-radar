@@ -444,7 +444,7 @@ Chaque alerte possède une gravité, un propriétaire, un statut, une échéance
 - onglet `Analyses` et routes API conservés pour les ventilations complètes ;
 - audit des API sources : DiddiFood est activable immédiatement avec résumé quotidien, finance et santé ;
 - DiddiFood ajouté aux modules par défaut et à la collecte financière automatique ;
-- 97 tests automatisés réussis ;
+- 98 tests automatisés réussis ;
 - scripts de sauvegarde et restauration PostgreSQL ;
 - procédure de déploiement, sauvegarde, restauration, retour arrière et rotation.
 

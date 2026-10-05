@@ -56,6 +56,11 @@ Un consommateur comme Odoo doit utiliser les routes JSON sous `/api/pilotage`
 et le contrat OpenAPI publié par `/openapi.json`. Il ne doit pas dépendre du
 HTML ni appeler directement les bases des modules sources.
 
+Les `deep_links` relatifs fournis par les modules sont convertis par l'API en
+URL absolues avec `PILOTAGE_BACKOFFICE_BASE_URL`. En staging, la valeur par
+défaut est `https://admin-staging.diddifree.com`. Le frontend ouvre ces liens
+dans un nouvel onglet, car Pilotage et Backoffice utilisent des domaines distincts.
+
 Failure rule (protocol): a failed source never becomes a zero KPI. Failures
 only update `pilotage_source_state`; the last valid summary keeps being
 served with freshness `stale`. A module that has never answered reports
