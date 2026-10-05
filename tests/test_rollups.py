@@ -80,19 +80,21 @@ class RollupTests(unittest.TestCase):
         self.assertEqual(metrics["average_fare_xof"]["value"], "100.00")
 
     def test_snapshot_metric_keeps_last_value(self):
-        start = week_start(self.today)
+        anchor = date(2026, 10, 7)
+        start = week_start(anchor)
         seed_day("identity", start.isoformat(), 0, 0, users_total=100)
         seed_day("identity", (start + timedelta(days=1)).isoformat(), 0, 0, users_total=105)
-        buckets = aggregate_periods("identity", period="week", count=1, today=self.today)
+        buckets = aggregate_periods("identity", period="week", count=1, today=anchor)
         metrics = {m["name"]: m for m in buckets[0]["metrics"]}
         self.assertEqual(metrics["users_total"]["value"], 105)
         self.assertEqual(metrics["users_total"]["aggregation"], "last")
 
     def test_decimal_string_xof_is_summed_exactly(self):
-        start = week_start(self.today)
+        anchor = date(2026, 10, 7)
+        start = week_start(anchor)
         seed_day("diddisend", start.isoformat(), 0, "10.10")
         seed_day("diddisend", (start + timedelta(days=1)).isoformat(), 0, "20.20")
-        buckets = aggregate_periods("diddisend", period="week", count=1, today=self.today)
+        buckets = aggregate_periods("diddisend", period="week", count=1, today=anchor)
         metrics = {m["name"]: m for m in buckets[0]["metrics"]}
         self.assertEqual(metrics["fare_total_xof"]["value"], "30.30")
 

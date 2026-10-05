@@ -35,7 +35,7 @@ class BreakdownCollectionTests(unittest.TestCase):
     def test_breakdown_aggregates_sum_daily_items(self):
         asyncio.run(collect_breakdown("diddigo", date="2026-10-02", dimension="payment_method", metric="rides_completed", client=FakeBreakdownClient()))
         asyncio.run(collect_breakdown("diddigo", date="2026-10-03", dimension="payment_method", metric="rides_completed", client=FakeBreakdownClient()))
-        response = self.client.get("/api/pilotage/modules/diddigo/breakdown-aggregates?dimension=payment_method&metric=rides_completed&period=week&count=1", headers=DG_HEADERS)
+        response = self.client.get("/api/pilotage/modules/diddigo/breakdown-aggregates?dimension=payment_method&metric=rides_completed&period=month&count=1", headers=DG_HEADERS)
         self.assertEqual(response.status_code, 200)
         bucket = response.json()["buckets"][0]
         self.assertEqual(bucket["total"], 20)

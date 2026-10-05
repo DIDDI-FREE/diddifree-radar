@@ -442,7 +442,9 @@ Chaque alerte possède une gravité, un propriétaire, un statut, une échéance
 - collecte automatique toutes les 60 secondes des résumés, finances et ventilations disponibles ;
 - accueil et `GET /api/pilotage/overview` enrichis avec finance, extraits ventilés et couverture reçue/attendue ;
 - onglet `Analyses` et routes API conservés pour les ventilations complètes ;
-- 96 tests automatisés réussis ;
+- audit des API sources : DiddiFood est activable immédiatement avec résumé quotidien, finance et santé ;
+- DiddiFood ajouté aux modules par défaut et à la collecte financière automatique ;
+- 97 tests automatisés réussis ;
 - scripts de sauvegarde et restauration PostgreSQL ;
 - procédure de déploiement, sauvegarde, restauration, retour arrière et rotation.
 

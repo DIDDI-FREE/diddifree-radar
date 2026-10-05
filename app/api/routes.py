@@ -9,7 +9,7 @@ from decimal import Decimal
 from datetime import date as date_type, datetime, timedelta
 
 from app.collector import store
-from app.collector.collector import BREAKDOWN_MATRIX, DAILY_KIND, FINANCE_KIND, backfill_default_breakdowns, backfill_finance_module, backfill_module, breakdown_kind, business_timezone, business_today, collect_breakdown, collect_daily_summary, collect_default_breakdowns, collect_finance_summary
+from app.collector.collector import BREAKDOWN_MATRIX, DAILY_KIND, FINANCE_KIND, FINANCE_MODULES, backfill_default_breakdowns, backfill_finance_module, backfill_module, breakdown_kind, business_timezone, business_today, collect_breakdown, collect_daily_summary, collect_default_breakdowns, collect_finance_summary
 from app.collector.rollups import aggregate_periods
 from app.collector.breakdown_rollups import aggregate_breakdowns
 from app.core.auth import COLLECT_ROLES, FINANCE_ROLES, PilotagePrincipal, get_principal, require_module_access, require_role
@@ -222,12 +222,12 @@ def _module_block(module: str, principal: PilotagePrincipal) -> dict:
         "coverage": {
             "date": summary_date,
             "daily_available": record is not None,
-            "finance_expected": module in {"diddigo", "diddisend"},
+            "finance_expected": module in FINANCE_MODULES,
             "finance_available": stored_finance_record is not None,
             "breakdowns_expected": breakdowns_expected,
             "breakdowns_available": breakdowns_available,
             "complete": record is not None
-            and (module not in {"diddigo", "diddisend"} or stored_finance_record is not None)
+            and (module not in FINANCE_MODULES or stored_finance_record is not None)
             and breakdowns_available >= breakdowns_expected,
         },
     }

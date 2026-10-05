@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import httpx
 
-from app.sources.catalog import get_source
+from app.sources.catalog import enabled_modules, get_source
 from app.sources.client import PilotageSourceClient
 from app.sources.normalization import normalize_daily_summary
 
@@ -15,6 +15,11 @@ def run(coro):
 
 
 class SourceCatalogTests(unittest.TestCase):
+    def test_ready_modules_are_enabled_by_default(self):
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("PILOTAGE_MODULES", None)
+            self.assertEqual(enabled_modules(), ["identity", "diddigo", "diddisend", "diddipay", "diddifood"])
+
     def test_current_module_contracts_are_configured(self):
         diddigo = get_source("diddigo")
         self.assertEqual(diddigo.daily_summary_path(), "/internal/pilotage/daily-summary")

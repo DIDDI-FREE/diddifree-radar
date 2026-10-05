@@ -20,6 +20,7 @@ from app.sources.normalization import normalize_daily_summary
 
 DAILY_KIND = "daily"
 FINANCE_KIND = "finance"
+FINANCE_MODULES = ("diddigo", "diddisend", "diddifood")
 
 
 def breakdown_kind(dimension: str, metric: str) -> str:
@@ -213,7 +214,7 @@ async def collect_auxiliary(*, date: str | None = None, finance: bool = True, br
     target_date = date or business_today()
     jobs = []
     if finance:
-        jobs.extend(collect_finance_summary(module, date=target_date) for module in ("diddigo", "diddisend") if module in enabled_modules())
+        jobs.extend(collect_finance_summary(module, date=target_date) for module in FINANCE_MODULES if module in enabled_modules())
     if breakdowns:
         jobs.extend(collect_default_breakdowns(module, date=target_date) for module in ("diddigo", "diddisend") if module in enabled_modules())
     if not jobs:

@@ -126,7 +126,7 @@ rencontrés, reste côté Pilotage et reste externe.
 - finance et extraits ventilés ajoutés à l'accueil et à `GET /api/pilotage/overview` ;
 - couverture par module exposée : résumé, finance et ventilations reçues/attendues ;
 - ventilations détaillées disponibles dans l'onglet `Analyses` et par les routes API ;
-- 96 tests automatisés réussis.
+- 97 tests automatisés réussis.
 
 ### Blocages rencontrés
 
@@ -144,3 +144,29 @@ rencontrés, reste côté Pilotage et reste externe.
 - DiddiFood et DiddiMap : fournir les contrats et accès nécessaires ;
 - DiddiPay : fournir la ventilation par module fondée sur `PaymentIntent.client_id` ;
 - effectuer la rotation planifiée des secrets exposés avant la production.
+
+## Complément — audit des API modules
+
+### Réalisé
+
+- vérification dans le code des routes DiddiFreeID, DiddiGo, DiddiSend, DiddiPay et DiddiFood ;
+- confirmation que DiddiFood expose déjà les résumés quotidien, financier et de santé ;
+- activation de DiddiFood par défaut dans Pilotage ;
+- ajout de sa finance à la collecte automatique ;
+- inventaire détaillé dans `docs/MODULE_API_AUDIT_2026-10-05.md`.
+
+### Blocages rencontrés
+
+- aucun blocage de code Pilotage pour la collecte quotidienne et financière DiddiFood ;
+- DiddiFood n'expose pas encore de ventilations ;
+- DiddiPay n'expose pas de ventilation par module client.
+
+### Reste côté Pilotage
+
+- déployer et effectuer la recette authentifiée DiddiFood ;
+- ajouter la collecte des routes `health-summary` dans une vue d'exploitation.
+
+### Reste externe
+
+- provisionner ou confirmer le client `pilotage-staging-diddifood` des deux côtés ;
+- compléter les contrats DiddiPay, DiddiGo et DiddiFood listés dans l'audit.

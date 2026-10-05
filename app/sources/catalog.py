@@ -92,6 +92,6 @@ def get_source(key: str) -> PilotageSource:
 
 
 def enabled_modules() -> list[str]:
-    configured = os.getenv("PILOTAGE_MODULES", "identity,diddigo,diddisend,diddipay")
+    configured = os.getenv("PILOTAGE_MODULES", "identity,diddigo,diddisend,diddipay,diddifood")
     modules = [part.strip() for part in configured.split(",") if part.strip()]
     return [module for module in modules if module in PILOTAGE_SOURCES]
