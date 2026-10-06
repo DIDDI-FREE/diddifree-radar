@@ -11,6 +11,7 @@ from pydantic import ValidationError
 
 from app.contracts.pilotage import PilotageSummary
 from app.contracts.breakdown import PilotageBreakdown
+from app.contracts.accounting import AccountingSourceSummary
 from app.collector import store
 from app.core.logging import log_json
 from app.sources.catalog import enabled_modules
@@ -20,6 +21,7 @@ from app.sources.normalization import normalize_daily_summary
 
 DAILY_KIND = "daily"
 FINANCE_KIND = "finance"
+ACCOUNTING_KIND = "accounting"
 FINANCE_MODULES = ("diddigo", "diddisend", "diddifood")
 
 
@@ -138,6 +140,25 @@ async def collect_finance_summary(module: str, *, date: str | None = None, clien
     return {"module": module, "date": summary.date.isoformat(), "status": "collected"}
 
 
+async def collect_accounting_summary(*, date: str | None = None, client: PilotageSourceClient | None = None) -> dict:
+    module = "diddipay"
+    target_date = date or business_today()
+    client = client or PilotageSourceClient(module)
+    try:
+        summary = AccountingSourceSummary.model_validate(await client.accounting_summary(target_date))
+        if summary.module != module or summary.contract_version != "pilotage.accounting-source.v1":
+            raise ValueError("unexpected accounting source identity")
+    except SourceError as error:
+        store.record_failure(module, ACCOUNTING_KIND, error.code, str(error))
+        return {"module": module, "date": target_date, "status": "failed", "code": error.code}
+    except (ValidationError, ValueError):
+        store.record_failure(module, ACCOUNTING_KIND, "contract_invalid", "accounting summary does not match pilotage.accounting-source.v1")
+        return {"module": module, "date": target_date, "status": "failed", "code": "contract_invalid"}
+    store.save_summary(module, ACCOUNTING_KIND, summary.date.isoformat(), summary.model_dump(mode="json"), summary.calculated_at.isoformat(), summary.is_final)
+    store.record_success(module, ACCOUNTING_KIND)
+    return {"module": module, "date": summary.date.isoformat(), "status": "collected"}
+
+
 async def backfill_finance_module(module: str, *, days: int, client: PilotageSourceClient | None = None) -> dict:
     days = max(1, min(days, 90))
     client = client or PilotageSourceClient(module)
@@ -210,13 +231,15 @@ async def collect_all(*, date: str | None = None) -> list[dict]:
     return normalized
 
 
-async def collect_auxiliary(*, date: str | None = None, finance: bool = True, breakdowns: bool = True) -> list[dict]:
+async def collect_auxiliary(*, date: str | None = None, finance: bool = True, breakdowns: bool = True, accounting: bool = True) -> list[dict]:
     target_date = date or business_today()
     jobs = []
     if finance:
         jobs.extend(collect_finance_summary(module, date=target_date) for module in FINANCE_MODULES if module in enabled_modules())
     if breakdowns:
         jobs.extend(collect_default_breakdowns(module, date=target_date) for module in ("diddigo", "diddisend") if module in enabled_modules())
+    if accounting and "diddipay" in enabled_modules():
+        jobs.append(collect_accounting_summary(date=target_date))
     if not jobs:
         return []
     results = await asyncio.gather(*jobs, return_exceptions=True)
@@ -234,17 +257,21 @@ async def run_forever() -> None:
     interval = max(float(os.getenv("PILOTAGE_COLLECT_INTERVAL_SECONDS", "30")), 5.0)
     finance_interval = max(float(os.getenv("PILOTAGE_FINANCE_COLLECT_INTERVAL_SECONDS", "60")), interval)
     breakdown_interval = max(float(os.getenv("PILOTAGE_BREAKDOWN_COLLECT_INTERVAL_SECONDS", "60")), interval)
-    last_finance = last_breakdown = 0.0
+    accounting_interval = max(float(os.getenv("PILOTAGE_ACCOUNTING_COLLECT_INTERVAL_SECONDS", "60")), interval)
+    last_finance = last_breakdown = last_accounting = 0.0
     log_json({"event": "collector_started", "interval_seconds": interval, "modules": enabled_modules()})
     while True:
         await collect_all()
         now = asyncio.get_running_loop().time()
         run_finance = now - last_finance >= finance_interval
         run_breakdowns = now - last_breakdown >= breakdown_interval
-        if run_finance or run_breakdowns:
-            await collect_auxiliary(finance=run_finance, breakdowns=run_breakdowns)
+        run_accounting = now - last_accounting >= accounting_interval
+        if run_finance or run_breakdowns or run_accounting:
+            await collect_auxiliary(finance=run_finance, breakdowns=run_breakdowns, accounting=run_accounting)
             if run_finance:
                 last_finance = now
             if run_breakdowns:
                 last_breakdown = now
+            if run_accounting:
+                last_accounting = now
         await asyncio.sleep(interval)

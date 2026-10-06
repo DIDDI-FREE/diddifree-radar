@@ -74,15 +74,18 @@ class CollectorTests(unittest.TestCase):
         self.assertIsNone(store.latest_summary("diddigo", DAILY_KIND))
 
     def test_auxiliary_collection_refreshes_finance_and_breakdowns(self):
-        with patch("app.collector.collector.enabled_modules", return_value=["diddigo", "diddisend", "diddifood"]), patch(
+        with patch("app.collector.collector.enabled_modules", return_value=["diddigo", "diddisend", "diddifood", "diddipay"]), patch(
             "app.collector.collector.collect_finance_summary", new=AsyncMock(return_value={"status": "collected"})
         ) as finance, patch(
             "app.collector.collector.collect_default_breakdowns", new=AsyncMock(return_value={"status": "collected"})
-        ) as breakdowns:
+        ) as breakdowns, patch(
+            "app.collector.collector.collect_accounting_summary", new=AsyncMock(return_value={"status": "collected"})
+        ) as accounting:
             results = run(collect_auxiliary(date="2026-10-03"))
-        self.assertEqual(len(results), 5)
+        self.assertEqual(len(results), 6)
         self.assertEqual(finance.await_count, 3)
         self.assertEqual(breakdowns.await_count, 2)
+        self.assertEqual(accounting.await_count, 1)
 
 
 if __name__ == "__main__":

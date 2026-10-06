@@ -2,16 +2,18 @@ from __future__ import annotations
 
 import re
 import os
+import hashlib
+import json
 from urllib.parse import urljoin, urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 from decimal import Decimal
 
-from datetime import date as date_type, datetime, timedelta
+from datetime import date as date_type, datetime, timedelta, timezone
 
 from app.collector import store
-from app.collector.collector import BREAKDOWN_MATRIX, DAILY_KIND, FINANCE_KIND, FINANCE_MODULES, backfill_default_breakdowns, backfill_finance_module, backfill_module, breakdown_kind, business_timezone, business_today, collect_breakdown, collect_daily_summary, collect_default_breakdowns, collect_finance_summary
+from app.collector.collector import ACCOUNTING_KIND, BREAKDOWN_MATRIX, DAILY_KIND, FINANCE_KIND, FINANCE_MODULES, backfill_default_breakdowns, backfill_finance_module, backfill_module, breakdown_kind, business_timezone, business_today, collect_accounting_summary, collect_breakdown, collect_daily_summary, collect_default_breakdowns, collect_finance_summary
 from app.collector.rollups import aggregate_periods
 from app.collector.breakdown_rollups import aggregate_breakdowns
 from app.core.auth import COLLECT_ROLES, FINANCE_ROLES, PilotagePrincipal, get_principal, require_module_access, require_role
@@ -440,6 +442,91 @@ def finance_overview(
             "message": "DiddiPay totals are global and DiddiGo does not yet expose its wallet breakdown.",
         },
     }
+
+
+@router.get("/accounting/daily-export")
+def accounting_daily_export(
+    date: str = Query(pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    """Stable, read-only daily payload consumed by Odoo."""
+    require_role(principal, FINANCE_ROLES)
+    try:
+        date_type.fromisoformat(date)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail={"error": {"code": "invalid_date", "message": "date must be a valid YYYY-MM-DD date"}}) from error
+
+    business = []
+    missing = []
+    source_revisions = {}
+    final_flags = []
+    for module in FINANCE_MODULES:
+        record = store.latest_summary(module, FINANCE_KIND, summary_date=date)
+        if not record:
+            missing.append(f"{module}_finance_summary_missing")
+            continue
+        source_revisions[module] = int(record["revision"])
+        final_flags.append(bool(record["is_final"]))
+        payload = record["payload"]
+        business.append({
+            "module": module,
+            "revision": record["revision"],
+            "collected_at": record["collected_at"],
+            "calculated_at": payload.get("calculated_at"),
+            "is_final": bool(record["is_final"]),
+            "metrics": payload.get("metrics", []),
+            "sources": payload.get("sources", []),
+        })
+
+    payment = store.latest_summary("diddipay", ACCOUNTING_KIND, summary_date=date)
+    payment_entries = []
+    payment_source = None
+    if payment:
+        source_revisions["diddipay"] = int(payment["revision"])
+        final_flags.append(bool(payment["is_final"]))
+        payment_entries = payment["payload"].get("entries", [])
+        payment_source = {
+            "module": "diddipay",
+            "revision": payment["revision"],
+            "collected_at": payment["collected_at"],
+            "calculated_at": payment["payload"].get("calculated_at"),
+            "is_final": bool(payment["is_final"]),
+            "sources": payment["payload"].get("sources", []),
+        }
+    else:
+        missing.append("diddipay_accounting_summary_missing")
+
+    _audit_financial_access(principal, "accounting-daily-export")
+    revision_material = json.dumps({"date": date, "sources": source_revisions, "missing": missing}, sort_keys=True)
+    revision = hashlib.sha256(revision_material.encode("utf-8")).hexdigest()[:16]
+    return {
+        "contract_version": "pilotage.accounting.v1",
+        "date": date,
+        "timezone": str(business_timezone()),
+        "currency": "XOF",
+        "is_final": bool(final_flags) and not missing and all(final_flags),
+        "revision": revision,
+        "source_revisions": source_revisions,
+        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "business_summaries": business,
+        "payment_entries": payment_entries,
+        "payment_source": payment_source,
+        "reconciliation": {
+            "status": "complete" if not missing else "partial",
+            "blockers": missing,
+            "rule": "Business amounts come from each service; processor fees, settlements, payouts and exact partial refunds come from DiddiPay.",
+        },
+    }
+
+
+@router.post("/sources/diddipay/collect-accounting")
+async def trigger_accounting_collection(
+    date: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    require_role(principal, COLLECT_ROLES & FINANCE_ROLES)
+    require_module_access(principal, "diddipay")
+    return {"result": await collect_accounting_summary(date=date), "request_id": get_request_id()}
 
 
 @router.post("/sources/{module}/collect-finance")

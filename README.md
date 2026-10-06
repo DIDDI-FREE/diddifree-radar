@@ -30,6 +30,7 @@ api (uvicorn app.main:app)
   GET  /api/pilotage/modules/{module}/breakdown        one stored operational breakdown
   GET  /api/pilotage/modules/{module}/breakdown-aggregates weekly/monthly breakdowns
   GET  /api/pilotage/modules/{module}/finance-summary  protected financial view
+  GET  /api/pilotage/accounting/daily-export           consolidated daily export for Odoo
   GET  /api/pilotage/sources                           collection state per source
   POST /api/pilotage/sources/{module}/collect          manual collection trigger
   GET  /api/pilotage/objectives                        objectives and progress
@@ -114,3 +115,6 @@ Backoffice deployment layout.
 
 Operational deployment, backup, restore and rollback steps are documented in
 [`docs/STAGING_RUNBOOK.md`](docs/STAGING_RUNBOOK.md).
+
+The Odoo accounting contract and authenticated staging recipe are documented
+in [`docs/DIDDIPAY_ODOO_DAILY_EXPORT_BRIEF.md`](docs/DIDDIPAY_ODOO_DAILY_EXPORT_BRIEF.md).

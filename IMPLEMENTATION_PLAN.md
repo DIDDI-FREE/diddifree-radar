@@ -445,6 +445,8 @@ Chaque alerte possède une gravité, un propriétaire, un statut, une échéance
 - audit des API sources : DiddiFood est activable immédiatement avec résumé quotidien, finance et santé ;
 - DiddiFood ajouté aux modules par défaut et à la collecte financière automatique ;
 - 98 tests automatisés réussis ;
+- export Odoo quotidien consolidé, collecte comptable DiddiPay et recette S2S ajoutés ;
+- 102 tests automatisés réussis ;
 - scripts de sauvegarde et restauration PostgreSQL ;
 - procédure de déploiement, sauvegarde, restauration, retour arrière et rotation.
 
@@ -452,6 +454,7 @@ Chaque alerte possède une gravité, un propriétaire, un statut, une échéance
 
 - installer les secrets dans le coffre après réponse Auth ;
 - exécuter la recette authentifiée des rôles, données, objectifs, alertes et exports ;
+- provisionner le client `service:odoo`, redéployer Pilotage puis conserver un exemple JSON authentifié ;
 - configurer les sauvegardes planifiées et les alertes d'exploitation ;
 - protéger `main` et obtenir la validation DG.
 
