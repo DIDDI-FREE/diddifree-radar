@@ -1,6 +1,5 @@
 import asyncio
 import unittest
-from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
 
@@ -92,25 +91,6 @@ class AccountingExportTests(unittest.TestCase):
 
     def test_operations_role_cannot_read_accounting_export(self):
         response = self.client.get("/api/pilotage/accounting/daily-export?date=2026-10-05", headers=OPERATIONS_HEADERS)
-        self.assertEqual(response.status_code, 403)
-
-    def test_finance_role_can_force_a_date_refresh_and_get_per_source_results(self):
-        collected = AsyncMock(side_effect=lambda module, date: {"module": module, "date": date, "status": "collected"})
-        accounting = AsyncMock(return_value={"module": "diddipay", "date": "2026-10-05", "status": "collected"})
-        with patch("app.api.routes.collect_finance_summary", new=collected), patch(
-            "app.api.routes.collect_accounting_summary", new=accounting
-        ), patch("app.api.routes.enabled_modules", return_value=["diddigo", "diddisend", "diddifood", "diddipay"]):
-            response = self.client.post("/api/pilotage/accounting/refresh?date=2026-10-05", headers=DG_HEADERS)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["status"], "collected")
-        self.assertEqual([item["module"] for item in response.json()["results"]], ["diddigo", "diddisend", "diddifood", "diddipay"])
-
-    def test_accounting_refresh_rejects_future_date(self):
-        response = self.client.post("/api/pilotage/accounting/refresh?date=2099-01-01", headers=DG_HEADERS)
-        self.assertEqual(response.status_code, 422)
-
-    def test_operations_role_cannot_force_accounting_refresh(self):
-        response = self.client.post("/api/pilotage/accounting/refresh?date=2026-10-05", headers=OPERATIONS_HEADERS)
         self.assertEqual(response.status_code, 403)
 
     def test_present_but_provisional_source_is_a_reconciliation_blocker(self):

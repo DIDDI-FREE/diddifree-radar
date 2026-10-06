@@ -62,14 +62,3 @@ python scripts/verify_odoo_export_staging.py --date 2026-10-05
 
 La sortie standard est la réponse JSON réelle de Pilotage. Elle confirme aussi
 les noms exacts des métriques reçues de DiddiGo dans `business_summaries`.
-
-Pour forcer le recalcul d’une date et diagnostiquer chaque source :
-
-```http
-POST /api/pilotage/accounting/refresh?date=2026-10-05
-Authorization: Bearer <service token avec pilotage:finance:read>
-X-Client-ID: <client_id présent dans le token>
-```
-
-La réponse donne un résultat par module. Il faut ensuite relire
-`/accounting/daily-export` pour obtenir la nouvelle révision consolidée.
