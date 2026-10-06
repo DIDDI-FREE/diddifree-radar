@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
 
 from app.collector import store
-from app.collector.collector import DAILY_KIND, collect_auxiliary, collect_daily_summary
+from app.collector.collector import DAILY_KIND, collect_auxiliary, collect_daily_summary, refresh_recent_financial_days
 from app.core.db import execute, init_db
 from app.sources.gateway import SourceRejected, SourceUnavailable
 from tests.test_contracts import GUIDE_EXAMPLE
@@ -86,6 +86,18 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(finance.await_count, 3)
         self.assertEqual(breakdowns.await_count, 2)
         self.assertEqual(accounting.await_count, 1)
+
+    def test_finalization_refresh_reloads_closed_days_without_breakdowns(self):
+        with patch("app.collector.collector.business_today", return_value="2026-10-07"), patch(
+            "app.collector.collector.collect_auxiliary", new=AsyncMock(return_value=[])
+        ) as auxiliary:
+            run(refresh_recent_financial_days(days=3))
+        self.assertEqual(auxiliary.await_count, 3)
+        self.assertEqual(
+            [call.kwargs["date"] for call in auxiliary.await_args_list],
+            ["2026-10-04", "2026-10-05", "2026-10-06"],
+        )
+        self.assertTrue(all(call.kwargs == {"date": call.kwargs["date"], "finance": True, "breakdowns": False, "accounting": True} for call in auxiliary.await_args_list))
 
 
 if __name__ == "__main__":

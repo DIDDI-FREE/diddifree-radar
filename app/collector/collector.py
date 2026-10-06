@@ -253,15 +253,36 @@ async def collect_auxiliary(*, date: str | None = None, finance: bool = True, br
     return normalized
 
 
+async def refresh_recent_financial_days(*, days: int = 7) -> list[dict]:
+    """Re-read closed business days so provisional source data can become final.
+
+    This runs once when the collector starts and once for the previous day when
+    the Abidjan calendar date changes. It deliberately excludes breakdowns:
+    the Odoo export only depends on finance summaries and DiddiPay accounting.
+    """
+    today = date_type.fromisoformat(business_today())
+    results: list[dict] = []
+    for offset in range(max(1, min(days, 31)), 0, -1):
+        target_date = (today - timedelta(days=offset)).isoformat()
+        results.extend(await collect_auxiliary(date=target_date, finance=True, breakdowns=False, accounting=True))
+    return results
+
+
 async def run_forever() -> None:
     interval = max(float(os.getenv("PILOTAGE_COLLECT_INTERVAL_SECONDS", "30")), 5.0)
     finance_interval = max(float(os.getenv("PILOTAGE_FINANCE_COLLECT_INTERVAL_SECONDS", "60")), interval)
     breakdown_interval = max(float(os.getenv("PILOTAGE_BREAKDOWN_COLLECT_INTERVAL_SECONDS", "60")), interval)
     accounting_interval = max(float(os.getenv("PILOTAGE_ACCOUNTING_COLLECT_INTERVAL_SECONDS", "60")), interval)
     last_finance = last_breakdown = last_accounting = 0.0
+    last_business_date = business_today()
     log_json({"event": "collector_started", "interval_seconds": interval, "modules": enabled_modules()})
+    await refresh_recent_financial_days(days=int(os.getenv("PILOTAGE_FINALIZATION_LOOKBACK_DAYS", "7")))
     while True:
         await collect_all()
+        current_business_date = business_today()
+        if current_business_date != last_business_date:
+            await refresh_recent_financial_days(days=1)
+            last_business_date = current_business_date
         now = asyncio.get_running_loop().time()
         run_finance = now - last_finance >= finance_interval
         run_breakdowns = now - last_breakdown >= breakdown_interval

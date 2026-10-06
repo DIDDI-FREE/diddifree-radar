@@ -93,6 +93,18 @@ class AccountingExportTests(unittest.TestCase):
         response = self.client.get("/api/pilotage/accounting/daily-export?date=2026-10-05", headers=OPERATIONS_HEADERS)
         self.assertEqual(response.status_code, 403)
 
+    def test_present_but_provisional_source_is_a_reconciliation_blocker(self):
+        provisional = {**GO_FINANCE, "is_final": False}
+
+        class ProvisionalClient:
+            async def finance_summary(self, date: str) -> dict:
+                return {**provisional, "date": date}
+
+        asyncio.run(collect_finance_summary("diddigo", date="2026-10-05", client=ProvisionalClient()))
+        response = self.client.get("/api/pilotage/accounting/daily-export?date=2026-10-05", headers=DG_HEADERS)
+        self.assertIn("diddigo_finance_summary_provisional", response.json()["reconciliation"]["blockers"])
+        self.assertEqual(response.json()["reconciliation"]["status"], "partial")
+
     def test_invalid_accounting_source_contract_is_not_stored(self):
         invalid = FakeAccountingClient()
         invalid.accounting_summary = lambda date: None

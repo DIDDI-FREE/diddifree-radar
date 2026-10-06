@@ -446,7 +446,8 @@ Chaque alerte possède une gravité, un propriétaire, un statut, une échéance
 - DiddiFood ajouté aux modules par défaut et à la collecte financière automatique ;
 - 98 tests automatisés réussis ;
 - export Odoo quotidien consolidé, collecte comptable DiddiPay et recette S2S ajoutés ;
-- 102 tests automatisés réussis ;
+- finalisation automatique des sept dernières journées fermées et blocants explicites pour les sources provisoires ;
+- 104 tests automatisés réussis ;
 - scripts de sauvegarde et restauration PostgreSQL ;
 - procédure de déploiement, sauvegarde, restauration, retour arrière et rotation.
 

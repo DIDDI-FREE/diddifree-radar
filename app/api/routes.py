@@ -467,6 +467,8 @@ def accounting_daily_export(
             continue
         source_revisions[module] = int(record["revision"])
         final_flags.append(bool(record["is_final"]))
+        if not record["is_final"]:
+            missing.append(f"{module}_finance_summary_provisional")
         payload = record["payload"]
         business.append({
             "module": module,
@@ -484,6 +486,8 @@ def accounting_daily_export(
     if payment:
         source_revisions["diddipay"] = int(payment["revision"])
         final_flags.append(bool(payment["is_final"]))
+        if not payment["is_final"]:
+            missing.append("diddipay_accounting_summary_provisional")
         payment_entries = payment["payload"].get("entries", [])
         payment_source = {
             "module": "diddipay",

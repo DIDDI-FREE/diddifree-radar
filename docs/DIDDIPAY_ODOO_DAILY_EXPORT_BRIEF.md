@@ -44,6 +44,12 @@ si sa révision augmente. `is_final=true` signifie que toutes les sources
 attendues sont présentes et finales. `reconciliation.status=partial` interdit
 de considérer les sections absentes comme nulles.
 
+Le collecteur relit au démarrage les sept dernières journées fermées, puis la
+veille à chaque changement de date en heure d'Abidjan. Cela permet de remplacer
+les instantanés provisoires collectés pendant la journée par la version finale
+publiée après minuit. La fenêtre est réglable avec
+`PILOTAGE_FINALIZATION_LOOKBACK_DAYS`.
+
 ## Recette authentifiée
 
 Le script ne journalise jamais le secret ni le jeton :
