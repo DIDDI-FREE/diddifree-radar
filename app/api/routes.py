@@ -4,6 +4,7 @@ import re
 import os
 import hashlib
 import json
+import asyncio
 from urllib.parse import urljoin, urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -520,6 +521,40 @@ def accounting_daily_export(
             "blockers": missing,
             "rule": "Business amounts come from each service; processor fees, settlements, payouts and exact partial refunds come from DiddiPay.",
         },
+    }
+
+
+@router.post("/accounting/refresh")
+async def refresh_accounting_date(
+    date: str = Query(pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    principal: PilotagePrincipal = Depends(get_principal),
+) -> dict:
+    """Force one date to be re-read from every accounting source."""
+    require_role(principal, FINANCE_ROLES)
+    try:
+        requested_date = date_type.fromisoformat(date)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail={"error": {"code": "invalid_date", "message": "date must be a valid YYYY-MM-DD date"}}) from error
+    if requested_date > date_type.fromisoformat(business_today()):
+        raise HTTPException(status_code=422, detail={"error": {"code": "future_date", "message": "A future business date cannot be refreshed"}})
+
+    modules = [module for module in FINANCE_MODULES if module in enabled_modules()]
+    jobs = [collect_finance_summary(module, date=date) for module in modules]
+    if "diddipay" in enabled_modules():
+        jobs.append(collect_accounting_summary(date=date))
+    raw_results = await asyncio.gather(*jobs, return_exceptions=True)
+    results = []
+    for source, result in zip([*modules, *(["diddipay"] if "diddipay" in enabled_modules() else [])], raw_results):
+        if isinstance(result, BaseException):
+            results.append({"module": source, "date": date, "status": "failed", "code": "collector_error"})
+        else:
+            results.append(result)
+    _audit_financial_access(principal, "accounting-refresh")
+    return {
+        "date": date,
+        "status": "collected" if all(item.get("status") == "collected" for item in results) else "partial",
+        "results": results,
+        "export_url": f"/api/pilotage/accounting/daily-export?date={date}",
     }
 
 
