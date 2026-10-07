@@ -22,7 +22,7 @@ from app.sources.normalization import normalize_daily_summary
 DAILY_KIND = "daily"
 FINANCE_KIND = "finance"
 ACCOUNTING_KIND = "accounting"
-FINANCE_MODULES = ("diddigo", "diddisend", "diddifood")
+FINANCE_MODULES = ("diddigo", "diddisend")
 
 
 def breakdown_kind(dimension: str, metric: str) -> str:
